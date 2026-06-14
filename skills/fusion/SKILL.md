@@ -70,26 +70,44 @@ Keep panelists isolated: never paste one panelist's output into another's prompt
 is the judge and must stay separate from the panelists — for `opus4.8-4.8`, both panelists are spawned
 subagents, not you, so your synthesis reads all answers fresh.
 
-## Step 2 — Judge
+## Step 2 — Judge (pick the track that fits the task)
 
-Once every panelist has returned, read `references/judge_rubric.md`. Read all responses in full, attribute
-claims to each panelist (by model / run), and produce the five-section analysis: **Consensus**,
-**Contradictions**, **Partial coverage**, **Unique insights**, **Blind spots**. Don't average or smooth
-over conflict — independent agreement is your highest-confidence signal, and honest disagreement is the
-most useful thing the panel produces. A panelist that ran the code or read a primary source outranks one
-reasoning from memory, regardless of model.
+Once every panelist has returned, read `references/judge_rubric.md` and **classify the deliverable first**,
+because code and prose merge completely differently:
 
-## Step 3 — Final answer, grounded in the analysis
+- **Artifact task** (code, script, config, Minecraft mod/datapack, schema — the user wants a buildable
+  thing) → **Track A: merge & verify**. You are integrating two *implementations* into one working
+  program, not writing a report. Build a real model of each candidate, pick the stronger one as the base
+  and graft the better pieces from the other, resolve every difference by *correctness* (not by averaging
+  or keeping both), and emit the complete runnable artifact. The panel's value here is that two
+  independent attempts expose each other's bugs — the merge should end up **more correct than either
+  input**.
+- **Research / analysis task** (the user wants understanding or a recommendation) → **Track B: structured
+  synthesis** — the five sections: **Consensus**, **Contradictions**, **Partial coverage**, **Unique
+  insights**, **Blind spots**. Don't average or smooth over conflict; independent agreement is your
+  highest-confidence signal, honest disagreement is the most useful thing the panel produces.
 
-Write the actual answer to the user's task, grounded in the structured analysis — lead with the
-high-confidence consensus, fold in unique insights, flag what stays uncertain. The final answer must
-follow *from* the synthesis, not be one panelist's answer lightly edited.
+Either way: attribute decisions to each panelist (by model / run), and weight a panelist that actually ran
+the code or read a primary source over one reasoning from memory. If a panelist failed or was dropped, the
+judge treats it as **absent** — never as silent agreement.
+
+## Step 3 — Final deliverable
+
+- **Track A (code/artifact):** emit the complete, merged, working artifact — every file, runnable as-is,
+  not a diff or "take A's X and B's Y." Then **verify it with bash** (compile / run / test / lint —
+  whatever it supports); if it fails, fix and re-run until it works, and state exactly what you verified.
+  Follow with a tight merge rationale: what came from each candidate and which conflicts you resolved how.
+- **Track B (research):** write the answer grounded in the structured analysis — lead with high-confidence
+  consensus, fold in unique insights, flag what stays uncertain. It must follow *from* the synthesis, not
+  be one panelist's answer lightly edited.
 
 ## Step 4 — Present
 
-Lead with the **final answer**, then the structured analysis beneath it as the audit trail. Name the panel
-slug you ran and which panelists participated. If the panel downgraded because a CLI was missing, say so
-and how to enable the fuller panel (install the missing CLI).
+Lead with the **final deliverable** — the merged working artifact (Track A) or the grounded answer
+(Track B) — then the audit trail beneath it: the verification + merge rationale for code, or the
+five-section analysis for research. Name the panel slug you ran and which panelists participated. If the
+panel downgraded because a CLI was missing, say so and how to enable the fuller panel (install the missing
+CLI).
 
 ## Cost & latency note
 
