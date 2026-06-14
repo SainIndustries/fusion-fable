@@ -18,24 +18,28 @@ cp -R "$HERE/skills/fusion" "$CLAUDE_DIR/skills/fusion"
 cp "$HERE/commands/"*.md "$CLAUDE_DIR/commands/"
 chmod +x "$CLAUDE_DIR/skills/fusion/scripts/"*.sh
 
-echo "✓ Installed Fusion-Fable into $CLAUDE_DIR"
+echo "✓ Installed Fusion-Fable (Sain Industries fork) into $CLAUDE_DIR"
 echo "    skill    : $CLAUDE_DIR/skills/fusion"
-echo "    commands : /fusion-opus4.8  /fusion-gpt5.5"
+echo "    commands : /fusion  /fusion-gpt5.5  /fusion-opus4.8  /codex-expert"
 echo
 
-# Report which chains are usable on this machine.
+# Report what the pipeline can do on this machine.
+# Pipeline: fan out (blind panelists) → JUDGE (discernment) → Opus 4.8 SYNTHESIZE.
 have() { command -v "$1" >/dev/null 2>&1; }
-echo "Panel availability here:"
-echo "  opus4.8-4.8                  : ready (two independent Opus 4.8 runs, judged by Opus — no external CLI)"
+echo "Pipeline availability here (fan out → judge → synthesize):"
 if have codex; then
-  echo "  opus4.8-gpt5.5               : ready (codex found: $(codex --version 2>/dev/null | head -1))"
+  echo "  flagship : ready — 2× Opus 4.8 + GPT-5.5 panel, GPT-5.5 judges, Opus 4.8 synthesizes"
+  echo "             (codex found: $(codex --version 2>/dev/null | head -1))"
+  echo "  experts  : ready — persistent codex domain experts via /codex-expert (codex exec resume)"
 else
-  echo "  opus4.8-gpt5.5               : needs the 'codex' CLI (install + log in for GPT-5.5)"
+  echo "  flagship : needs the 'codex' CLI for the GPT-5.5 judge + panelist (install + log in)"
+  echo "  fallback : ready — 2× Opus 4.8 runs, Opus judges + synthesizes (no external CLI)"
+  echo "  experts  : needs the 'codex' CLI for persistent domain experts"
 fi
 if have gemini; then
-  echo "  opus4.8-gpt5.5-gemini3.1pro  : ready (gemini found)"
+  echo "  +gemini  : available as an OPTIONAL extra panelist — set FUSION_USE_GEMINI=1 (gemini found)"
 else
-  echo "  opus4.8-gpt5.5-gemini3.1pro  : needs the 'gemini' CLI (install + log in for Gemini 3.1 Pro)"
+  echo "  +gemini  : optional extra panelist (off by default; needs the 'gemini' CLI + FUSION_USE_GEMINI=1)"
 fi
 echo
 echo "Next: restart Claude Code (or run /reload-skills) so 'fusion' and the slash commands load."

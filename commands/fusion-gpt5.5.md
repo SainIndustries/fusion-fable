@@ -1,16 +1,17 @@
 ---
-description: Fusion panel of Opus 4.8 + GPT-5.5 in parallel, judged by Opus 4.8 (opus4.8-gpt5.5)
+description: Fusion flagship — 2 Opus 4.8 + GPT-5.5 panel, GPT-5.5 judges, Opus 4.8 synthesizes
 argument-hint: <your question>
 ---
-Invoke the **fusion** skill on the task below, forcing the `opus4.8-gpt5.5` panel:
-Opus 4.8 (Agent subagent) and GPT-5.5 (via `codex exec`) answer the SAME prompt IN PARALLEL, each
-independently with web + bash and neither seeing the other's work → Opus 4.8 judges both answers → Opus
-writes the final answer grounded in the analysis.
+Invoke the **fusion** skill on the task below, forcing the flagship pipeline:
+two independent Opus 4.8 panelists (Agent subagents) and one GPT-5.5 panelist (via `codex exec`) answer the
+SAME prompt IN PARALLEL, each independently with web + bash and none seeing the others' work → answers are
+anonymized (shuffled Panelist A/B/C) → **GPT-5.5 judges** them into a structured discernment (per-panelist
+assessment, consensus, contradictions, partial coverage, unique insights, blind spots, verdict) → **Opus
+4.8 synthesizes** the final answer grounded in that discernment, with real attribution restored.
 
-Follow the skill's SKILL.md exactly (fan out in parallel → judge → grounded final answer) and present the
-standard sections (Consensus / Contradictions / Partial coverage / Unique insights / Blind spots / Final
-answer). Use exactly one Opus 4.8 panelist and one GPT-5.5 panelist — do not add a Gemini panelist or a
-second Opus run. Pass the task verbatim to both; no "lenses". If the `codex` CLI is not installed, stop and
-say so rather than silently downgrading to the opus4.8-4.8 panel.
+Follow the skill's SKILL.md exactly (fan out → anonymize → GPT-5.5 judge → Opus synthesize → present). Use
+exactly three panelists: two Opus 4.8 runs and one GPT-5.5 — do not add a Gemini panelist. Pass the task
+verbatim to all; no "lenses". If the `codex` CLI is unavailable, the judge falls back to Opus 4.8 doing the
+discernment (say so in the output) rather than failing.
 
 Task: $ARGUMENTS

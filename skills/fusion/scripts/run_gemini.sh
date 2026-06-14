@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# run_gemini.sh — run one Gemini 3.1 Pro panelist on a prompt, with web search + bash.
+# run_gemini.sh — run one OPTIONAL Gemini panelist on a prompt, with web search + bash.
 #
 # Usage:
 #   run_gemini.sh <prompt_file> <output_file>
 #
-# Gemini's CLI is NOT installed on this machine yet. This script degrades gracefully:
-# if `gemini` is missing it exits non-zero with a clear message so the orchestrator can
-# drop Gemini from the panel and continue (downgrading the slug to opus4.8-gpt5.5).
+# Gemini is OFF by default in this fork (the default panel is 2× Opus 4.8 + GPT-5.5). Opt in with
+# FUSION_USE_GEMINI=1, and only when its CLI is installed and authenticated. This script degrades
+# gracefully: if `gemini` is missing it exits 127 so the orchestrator drops Gemini and continues.
 #
-# To enable: install the Gemini CLI and confirm `gemini --version` works, then adjust the
-# invocation below to match its non-interactive interface (flag names vary by version).
+# Model: overridable via GEMINI_MODEL (default gemini-2.5-pro). Note `gemini-3.1-pro` is NOT a valid
+# id on gemini-cli 0.25.2 (it 404s); use gemini-2.5-flash if your account's Pro quota is exhausted.
 
 set -uo pipefail
 
@@ -23,7 +23,7 @@ fi
 
 # Non-interactive Gemini run. Adjust flags to your installed gemini version if needed.
 # Many builds accept the prompt on stdin and stream to stdout; we capture stdout as the answer.
-gemini --model gemini-3.1-pro --yolo --prompt "$(cat "$prompt_file")" > "$output_file" 2> >(tail -20 >&2)
+gemini --model "${GEMINI_MODEL:-gemini-2.5-pro}" --yolo --prompt "$(cat "$prompt_file")" > "$output_file" 2> >(tail -20 >&2)
 
 status=$?
 if [ $status -ne 0 ] || [ ! -s "$output_file" ]; then
