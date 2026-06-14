@@ -76,13 +76,14 @@ Once every panelist has returned, read `references/judge_rubric.md` and **classi
 because code and prose merge completely differently:
 
 - **Artifact task** (code, script, config, Minecraft mod/datapack, schema — the user wants a buildable
-  thing) → **Track A: merge by reasoning**. You are integrating two *implementations* into one program,
-  not writing a report. Build a real model of each candidate, pick the stronger one as the base and graft
-  the better pieces from the other, resolve every difference by *correctness* (not by averaging or keeping
-  both), then **trace every seam** (matching signatures, imports, types, units, index bases across pieces
-  from different candidates) and emit the complete artifact. The panel's value here is that two
-  independent attempts expose each other's bugs — the merge should end up **more correct than either
-  input**. The merge is pure reasoning — no running the code — so the scrutiny goes into the seams.
+  thing) → **Track A: run both, then merge**. You are integrating two *implementations* into one working
+  program, not writing a report. **Run each candidate with bash first** to see what actually works and what
+  breaks in each, decide what to keep based on observed behavior (not on which looks better), graft the
+  parts that worked onto the stronger base, then **run the merged result and fix until it passes**. The
+  panel's value here is that two independent attempts expose each other's bugs — running both is how you
+  find which one is actually right, so the merge ends up **more correct than either input**. (If it truly
+  can't be executed here — needs the live game or an unavailable toolchain — fall back to seam-reasoning
+  and mark it unverified.)
 - **Research / analysis task** (the user wants understanding or a recommendation) → **Track B: structured
   synthesis** — the five sections: **Consensus**, **Contradictions**, **Partial coverage**, **Unique
   insights**, **Blind spots**. Don't average or smooth over conflict; independent agreement is your
@@ -95,9 +96,10 @@ judge treats it as **absent** — never as silent agreement.
 ## Step 3 — Final deliverable
 
 - **Track A (code/artifact):** emit the complete, merged artifact — every file, ready to run as-is, not a
-  diff or "take A's X and B's Y." The merge is done by reasoning, so before emitting, trace every seam for
-  internal consistency (signatures, imports, types, units, index bases) per `judge_rubric.md`. Follow with
-  a tight merge rationale: what came from each candidate and which conflicts you resolved how.
+  diff or "take A's X and B's Y." Per `judge_rubric.md`, you got here by **running both candidates** and
+  keeping what worked, and you **run the merged result and fix it until it passes** before presenting.
+  Follow with a tight merge rationale: what each candidate did when run, what you took from each, and what
+  you verified.
 - **Track B (research):** write the answer grounded in the structured analysis — lead with high-confidence
   consensus, fold in unique insights, flag what stays uncertain. It must follow *from* the synthesis, not
   be one panelist's answer lightly edited.
@@ -105,8 +107,8 @@ judge treats it as **absent** — never as silent agreement.
 ## Step 4 — Present
 
 Lead with the **final deliverable** — the merged working artifact (Track A) or the grounded answer
-(Track B) — then the audit trail beneath it: the merge rationale for code, or the
-five-section analysis for research. Name the panel slug you ran and which panelists participated. If the
+(Track B) — then the audit trail beneath it: for code, what each candidate did when run + the
+merge rationale + what you verified; for research, the five-section analysis. Name the panel slug you ran and which panelists participated. If the
 panel downgraded because a CLI was missing, say so and how to enable the fuller panel (install the missing
 CLI).
 
