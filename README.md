@@ -34,7 +34,12 @@ can't be reversed, because the panelist models can't call back out to spawn Opus
 intermediate discernment stage that Opus invokes and stays in control of. If `codex` is unavailable or
 capped, Opus does the discernment itself, so a missing judge degrades the run rather than breaking it.
 
-## What changed from upstream
+## What's different about this fork
+
+Upstream Fusion-Fable has Opus 4.8 both judge the panel and write the final answer. This fork's core bet is
+that **discernment and synthesis are different skills** — picking what's actually correct rewards a
+discriminating judge, while writing the grounded answer rewards a creative synthesizer — so it hands each
+job to the model better at it. Around that split sit a few operational changes:
 
 - **Split judge / synthesizer.** GPT-5.5 does discernment; Opus 4.8 does synthesis (upstream had Opus do
   both).
@@ -74,13 +79,14 @@ prints what your machine can run. Restart Claude Code (or run `/reload-skills`) 
 
 ## Use it
 
-Several ways, all equivalent under the hood:
+Nothing to configure session to session: `install.sh` placed the skill in `~/.claude`, and every Claude
+Code session auto-loads it. Just invoke it — three equivalent ways:
 
 - **Natural language** — just ask. The skill auto-triggers and picks the richest pipeline:
   > "Run this through Fusion: is it safe to `ALTER TABLE … ADD COLUMN` on a 200M-row Postgres table in prod?"
 - **Slash commands:**
   ```
-  /fusion           <prompt>   # auto-detect the richest pipeline
+  /fusion           <prompt>   # auto-detect the richest pipeline (recommended default)
   /fusion-gpt5.5    <prompt>   # flagship: 2× Opus 4.8 + GPT-5.5, GPT-5.5 judges, Opus synthesizes
   /fusion-opus4.8   <prompt>   # zero-setup: 2× Opus 4.8, Opus judges + synthesizes (no codex)
   ```
@@ -90,10 +96,47 @@ Several ways, all equivalent under the hood:
   /codex-expert payments-debugger  now propose a fix with a test   # same expert, remembers the last turn
   ```
 
+For a *literal* Fable-tier run, keep your Claude Code session on **Opus 4.8**: the panelists are pinned to
+Opus 4.8 no matter what, but the synthesizer is your session.
+
+### Which one do I reach for?
+
+- **One high-stakes question** where being confidently wrong is expensive — a design call, a risky
+  migration, a subtle debugging conclusion → `/fusion` (or `/fusion-gpt5.5`). One shot, maximum scrutiny.
+- **codex offline / capped, or you want a pure-Opus run** → `/fusion-opus4.8`.
+- **A long thread on one domain** where context should accumulate across many turns → `/codex-expert`.
+- **Quick or low-stakes** → don't use Fusion at all; a single direct answer is cheaper and just as good.
+
 Every panel run returns the same structure: a **Final answer** up top, then the audit trail — the judge's
 discernment (**Per-panelist assessment / Consensus / Contradictions / Partial coverage / Unique insights /
 Blind spots / Verdict**) — with each point attributed to the panelist that raised it (real attribution
 restored after anonymized judging), so you can see how the answer was assembled.
+
+## Goal-driven autonomous loops
+
+Fusion answers one question per run, but you can put it inside a goal-driven loop with the `/loop` Claude
+Code skill, which keeps working toward a stated goal — self-paced, or on a fixed interval — and calls a
+`/fusion` command at each decision point. The two compose directly:
+
+```
+# Self-paced: no interval — Claude decides when to iterate until the goal's stop condition is met.
+/loop Harden our JWT refresh-rotation design. Each round, run the most important open question through
+      /fusion-gpt5.5, apply the synthesis, and move to the next-riskiest unknown. Stop when a fusion
+      run surfaces no high-severity blind spots.
+
+# Fixed interval: re-run on a cadence.
+/loop 30m /fusion has anything in the incident postmortem changed our root-cause conclusion?
+```
+
+To get good results from a goal-loop, put three things in the loop prompt: the **goal**, an explicit
+**stop condition**, and the instruction to **act on the synthesis** at each step (not on any single
+panelist). The loop holds the goal across iterations; Fusion supplies the high-confidence answer for each
+step.
+
+> ⚠️ **Cost compounds in a loop.** Every Fusion run is ~N× a single answer (three panelists + a judge +
+> synthesis), so a loop that fuses on every iteration spends quickly. Reserve panel-grade scrutiny for the
+> hard decision points — have the loop fuse there and answer cheaper steps directly — and always give it a
+> concrete stop condition so it terminates.
 
 ## Panelist execution & the Claude Fable 5 system prompt
 
