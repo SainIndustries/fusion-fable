@@ -3,8 +3,9 @@ description: Fusion zero-setup — two independent Opus 4.8 runs, Opus judges + 
 argument-hint: <your question>
 ---
 Invoke the **fusion** skill on the task below, forcing the pure-Opus pipeline:
-run the same prompt twice as TWO independent Opus 4.8 panelists (Agent subagents, in parallel, neither
-seeing the other's work) → **Opus 4.8 does the discernment** (per-panelist assessment, consensus,
+run the same prompt twice as TWO independent Opus 4.8 panelists (headless `claude` CLI under the Claude
+Fable 5 system prompt, via `scripts/run_claude.sh`, in parallel, neither seeing the other's work) →
+**Opus 4.8 does the discernment** (per-panelist assessment, consensus,
 contradictions, partial coverage, unique insights, blind spots, verdict) → **Opus 4.8 synthesizes** the
 final answer grounded in it.
 

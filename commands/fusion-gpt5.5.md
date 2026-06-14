@@ -3,7 +3,8 @@ description: Fusion flagship — 2 Opus 4.8 + GPT-5.5 panel, GPT-5.5 judges, Opu
 argument-hint: <your question>
 ---
 Invoke the **fusion** skill on the task below, forcing the flagship pipeline:
-two independent Opus 4.8 panelists (Agent subagents) and one GPT-5.5 panelist (via `codex exec`) answer the
+two independent Opus 4.8 panelists (headless `claude` CLI under the Claude Fable 5 system prompt, via
+`scripts/run_claude.sh`) and one GPT-5.5 panelist (via `codex exec`) answer the
 SAME prompt IN PARALLEL, each independently with web + bash and none seeing the others' work → answers are
 anonymized (shuffled Panelist A/B/C) → **GPT-5.5 judges** them into a structured discernment (per-panelist
 assessment, consensus, contradictions, partial coverage, unique insights, blind spots, verdict) → **Opus

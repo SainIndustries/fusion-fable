@@ -26,8 +26,11 @@ codex_ok=false; gemini_ok=false
 have codex  && codex_ok=true
 have gemini && gemini_ok=true
 
+claude_ok=false; have claude && claude_ok=true
+
 echo "fusion panel detection (pipeline: fan out → judge → synthesize):"
-echo "  opus4.8      : yes (Agent subagents — always available; panelist + the synthesizer)"
+printf "  opus4.8      : %s (claude CLI panelists under the Fable 5 system prompt; also the synthesizer)\n" \
+  "$([ "$claude_ok" = true ] && echo yes || echo 'NO — claude CLI not on PATH')"
 printf "  gpt5.5       : %s (codex CLI — preferred JUDGE; also a panelist)\n" \
   "$([ "$codex_ok" = true ] && echo yes || echo NO)"
 printf "  gemini3.1pro : %s (optional extra panelist; off unless FUSION_USE_GEMINI=1)\n" \
@@ -58,6 +61,7 @@ echo "recommended pipeline:"
 echo "  panel       : $panel"
 echo "  judge       : $judge$([ "$judge" = opus4.8 ] && echo '   (codex not found — falling back to Opus judging)')"
 echo "  synthesize  : $synth"
+echo "  opus panelists run: claude --print --dangerously-skip-permissions --model opus --system-prompt-file CLAUDE-FABLE-5.md"
 echo
 echo "PANEL=$panel"
 echo "JUDGE=$judge"

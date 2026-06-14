@@ -27,6 +27,17 @@ echo
 # Pipeline: fan out (blind panelists) → JUDGE (discernment) → Opus 4.8 SYNTHESIZE.
 have() { command -v "$1" >/dev/null 2>&1; }
 echo "Pipeline availability here (fan out → judge → synthesize):"
+if have claude; then
+  echo "  panelists: Opus 4.8 via claude CLI under the Claude Fable 5 system prompt"
+  echo "             (claude --print --dangerously-skip-permissions --model opus --system-prompt-file CLAUDE-FABLE-5.md)"
+else
+  echo "  panelists: WARNING — 'claude' CLI not on PATH; Opus panelists fall back to Agent subagents"
+fi
+if [ -s "$CLAUDE_DIR/skills/fusion/CLAUDE-FABLE-5.md" ]; then
+  echo "  fable5   : installed at skills/fusion/CLAUDE-FABLE-5.md"
+else
+  echo "  fable5   : WARNING — CLAUDE-FABLE-5.md missing from the skill; panelists can't load the Fable 5 prompt"
+fi
 if have codex; then
   echo "  flagship : ready — 2× Opus 4.8 + GPT-5.5 panel, GPT-5.5 judges, Opus 4.8 synthesizes"
   echo "             (codex found: $(codex --version 2>/dev/null | head -1))"

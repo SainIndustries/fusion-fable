@@ -40,10 +40,19 @@ it:
 Opus always drives and writes the final answer — the pipeline can't be reversed, since the panelist models
 can't call back out to spawn Opus.
 
+## How the Opus panelists run
+
+By default the two Opus 4.8 panelists run as headless `claude` CLI subprocesses
+(`scripts/run_claude.sh`) under the **Claude Fable 5 system prompt**, with `--dangerously-skip-permissions`
+so each researches autonomously with web + bash — the same autonomy the codex panelist has. They run Opus
+4.8 (the accessible model) loaded with the Fable 5 prompt, which is the panel's "Fable-tier" intent. Each
+runs in a throwaway scratch dir so its file writes never touch your repo. (Spawning two `Agent` subagents
+instead is a supported alternative — same independence, just without the Fable 5 system prompt.)
+
 ## Default panel composition
 
-- Panelists: **two independent Opus 4.8 runs** (Agent subagents) **+ GPT-5.5** (codex), all answering in
-  parallel and blind. If codex is absent, the panel is the two Opus runs alone.
+- Panelists: **two independent Opus 4.8 runs** (claude CLI under the Fable 5 prompt) **+ GPT-5.5** (codex),
+  all answering in parallel and blind. If codex is absent, the panel is the two Opus runs alone.
 - Gemini is **off by default** — set `FUSION_USE_GEMINI=1` to add it as an optional extra panelist when its
   CLI is present and authenticated.
 - Judge: **GPT-5.5** (or Opus on fallback). Synthesizer: **Opus 4.8**.

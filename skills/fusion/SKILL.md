@@ -78,9 +78,18 @@ independent experts who won't see the others' work. Do not assign lenses; do not
 
 Launch **all panelists in a single turn** so they run concurrently:
 
-- **Opus 4.8 panelists** → the `Agent` tool, `subagent_type: general-purpose` (web + bash built in). Spawn
-  **two** independent Opus subagents with the *same* prompt — two cold runs. Spawn them in the same message
-  so they run at once; each returned answer is one panel response.
+- **Opus 4.8 panelists (default)** → headless `claude` CLI subprocesses under the **Claude Fable 5 system
+  prompt**, with permissions skipped so each researches autonomously (web + bash). Write each panelist's
+  prompt to a temp file and run **two** of them in the background with the *same* prompt — two cold runs:
+  ```bash
+  bash <skill_dir>/scripts/run_claude.sh /tmp/fusion_claude1_prompt.txt /tmp/fusion_claude1_out.md opus
+  bash <skill_dir>/scripts/run_claude.sh /tmp/fusion_claude2_prompt.txt /tmp/fusion_claude2_out.md opus
+  ```
+  This runs Opus 4.8 but loads the Fable 5 system prompt (the "Fable-tier" intent). It uses
+  `--dangerously-skip-permissions` so the panelist uses tools without prompts — deliberate for an isolated
+  panelist, contained to a scratch dir. *(Alternative: if you don't want headless CLI subprocesses, spawn
+  two `Agent` subagents `subagent_type: general-purpose` with the same prompt instead — same effect, no
+  Fable 5 prompt.)*
 - **GPT-5.5 panelist** → write its prompt to a temp file and run in the background:
   ```bash
   bash <skill_dir>/scripts/run_codex.sh /tmp/fusion_codex_prompt.txt /tmp/fusion_codex_out.md medium

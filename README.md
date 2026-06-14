@@ -38,6 +38,8 @@ capped, Opus does the discernment itself, so a missing judge degrades the run ra
 
 - **Split judge / synthesizer.** GPT-5.5 does discernment; Opus 4.8 does synthesis (upstream had Opus do
   both).
+- **Opus panelists run as `claude` CLI subprocesses under the Claude Fable 5 system prompt** (with
+  `--dangerously-skip-permissions`), instead of in-process Agent subagents — see the note below.
 - **Default panel is 2× Opus 4.8 + GPT-5.5** — Gemini is dropped from the default (opt back in with
   `FUSION_USE_GEMINI=1`). A second Opus run adds real within-model diversity with no extra CLI/auth.
 - **Anonymized judging** — panelist answers reach the judge as shuffled Panelist A/B/C, so a GPT-5.5 judge
@@ -93,10 +95,31 @@ discernment (**Per-panelist assessment / Consensus / Contradictions / Partial co
 Blind spots / Verdict**) — with each point attributed to the panelist that raised it (real attribution
 restored after anonymized judging), so you can see how the answer was assembled.
 
+## Panelist execution & the Claude Fable 5 system prompt
+
+By default this fork runs the two Opus 4.8 panelists as headless `claude` CLI subprocesses loaded with the
+Claude Fable 5 system prompt (`skills/fusion/CLAUDE-FABLE-5.md`), via `scripts/run_claude.sh`:
+
+```bash
+claude --print --dangerously-skip-permissions --model opus --system-prompt-file CLAUDE-FABLE-5.md "<task>"
+```
+
+`--model opus` runs Opus 4.8 (the accessible model) while the system-prompt file gives it the Fable 5
+persona — the panel's "Fable-tier" intent. `--dangerously-skip-permissions` lets each panelist research
+autonomously with web + bash without permission prompts, the same autonomy the codex panelist has.
+
+> ⚠️ **`--dangerously-skip-permissions` bypasses *all* permission checks for that subprocess.** That's
+> deliberate here — a panelist needs to run tools unattended — and each run is contained to a throwaway
+> scratch directory so its file writes can't touch your repo. Still, only use this fork on tasks and in
+> repos where you're comfortable with panelists executing tools unattended. Override the model with
+> `FUSION_CLAUDE_MODEL`, or the prompt file with `FUSION_FABLE5_PROMPT`. If you'd rather not run headless
+> CLI subprocesses at all, the skill can spawn in-process Agent subagents instead (no Fable 5 prompt).
+
 ## Requirements
 
-- **Claude Code**, with the session running **Opus 4.8** (panelist subagents and the synthesizer inherit
-  the session model — on another model the slug is nominal, not literal).
+- **Claude Code** with the `claude` CLI on your PATH. The Opus panelists are launched as
+  `claude --model opus` subprocesses (so they're literally Opus 4.8 regardless of your session model); the
+  synthesizer is your session, so run it on **Opus 4.8** for a literal Fable-tier result.
 - For the flagship pipeline and persistent experts: the [`codex` CLI](https://github.com/openai/codex)
   installed and logged in to an account with GPT-5.5 access. The runners use `codex exec` (tested against
   `codex-cli` 0.139).
@@ -112,8 +135,10 @@ experts light up once `codex` is installed and authenticated.
 ```
 skills/fusion/
   SKILL.md                  fan out → anonymize → GPT-5.5 judge → Opus synthesize → present
+  CLAUDE-FABLE-5.md         the Claude Fable 5 system prompt the Opus panelists load
   scripts/
     detect_panel.sh         picks panel + judge + synthesizer; prints PANEL/JUDGE/SYNTH/SLUG
+    run_claude.sh           runs an Opus 4.8 panelist via the claude CLI under the Fable 5 system prompt
     run_codex.sh            runs a GPT-5.5 panelist (web + bash), captures its answer
     run_judge.sh            the discernment stage — GPT-5.5 judges the anonymized answers
     codex_expert.sh         persistent codex domain experts (create/resume named sessions)
