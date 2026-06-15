@@ -74,7 +74,19 @@ fi
 
 id_file="$experts_dir/$name.id"
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/fusion-expert.XXXXXX")"
-trap 'rm -rf "$scratch"' EXIT
+
+# Serialize all calls to the SAME expert name so concurrent turns can't both create a session (orphaning
+# one) or interleave writes into one codex session. Uses an atomic mkdir lock (portable — `flock` is absent
+# on macOS), released on exit. Distinct expert names don't contend.
+lock_dir="$experts_dir/$name.lock"
+acquired=false
+for _ in $(seq 1 600); do
+  if mkdir "$lock_dir" 2>/dev/null; then acquired=true; break; fi
+  sleep 0.5
+done
+$acquired || die "could not acquire lock for expert '$name' (another call holds $lock_dir)."
+trap 'rmdir "$lock_dir" 2>/dev/null; rm -rf "$scratch"' EXIT
+
 out_file="$scratch/reply.md"
 json_log="$scratch/events.jsonl"
 
@@ -97,7 +109,8 @@ else
   sid="$(grep -iE 'session' "$json_log" | grep -oE '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}' | head -1)"
   [ -n "$sid" ] || sid="$(grep -oE '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}' "$json_log" | head -1)"
   if [ -n "$sid" ]; then
-    echo "$sid" > "$id_file"
+    # Atomic write so a crash mid-write can't leave a torn id file.
+    printf '%s\n' "$sid" > "$id_file.tmp.$$" && mv -f "$id_file.tmp.$$" "$id_file"
   else
     echo "[codex_expert.sh] WARNING: could not capture session id; this turn ran but won't be resumable." >&2
   fi

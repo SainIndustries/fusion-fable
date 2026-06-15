@@ -30,6 +30,10 @@
 
 set -uo pipefail
 
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+. "$HERE/_lib.sh"
+
 task_file="${1:?usage: run_judge.sh <task_file> <answers_dir> <output_file> [reasoning_effort]}"
 answers_dir="${2:?usage: run_judge.sh <task_file> <answers_dir> <output_file> [reasoning_effort]}"
 output_file="${3:?usage: run_judge.sh <task_file> <answers_dir> <output_file> [reasoning_effort]}"
@@ -112,7 +116,7 @@ EOF
   done
 } > "$prompt_file"
 
-codex exec \
+fusion_run_timeout "$(fusion_default_timeout)" codex exec \
   --skip-git-repo-check \
   --cd "$scratch" \
   -s workspace-write \
@@ -124,9 +128,25 @@ codex exec \
   > "$scratch/stream.log" 2>&1
 
 status=$?
+if [ $status -eq 124 ]; then
+  echo "[run_judge.sh] codex judge timed out after $(fusion_default_timeout)s — caller should fall back to Opus." >&2
+  exit 1
+fi
 if [ $status -ne 0 ] || [ ! -s "$output_file" ]; then
   echo "[run_judge.sh] codex judge exited $status; tail of log:" >&2
   tail -20 "$scratch/stream.log" >&2
+  exit 1
+fi
+
+# Validate the discernment actually has the required structure. A codex judge can return non-empty but
+# off-task output (e.g. contaminated by local project context) — that must trigger the Opus fallback, not
+# be synthesized over. Require the load-bearing section headers.
+missing=""
+for h in "Per-panelist assessment" "Consensus" "Contradictions" "Discernment verdict"; do
+  grep -qiF "$h" "$output_file" || missing="$missing \"$h\""
+done
+if [ -n "$missing" ]; then
+  echo "[run_judge.sh] judge output missing required sections:${missing} — treating as failed; caller should fall back to Opus." >&2
   exit 1
 fi
 echo "[run_judge.sh] ok -> $output_file (judge=$judge_model, effort=$effort, panelists=${#answers[@]})"

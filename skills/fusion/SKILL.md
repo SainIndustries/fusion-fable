@@ -56,6 +56,9 @@ It prints a machine-parseable block — grep these:
 - `JUDGE=` the discernment model (`gpt5.5` when codex is present, else `opus4.8`).
 - `SYNTH=` the synthesizer — always `opus4.8`.
 - `SLUG=` the human-readable label for what you ran.
+- `RUN_DIR=` a **fresh private directory for this run**. Use it for *every* intermediate file below
+  (`$RUN_DIR/...`). Never use a shared `/tmp/fusion_*` constant — that clobbers concurrent runs in other
+  sessions/projects. Set `RUN_DIR` from this value and reuse it through all steps.
 
 | Condition | Panel | Judge | Synth |
 | --- | --- | --- | --- |
@@ -82,59 +85,61 @@ Launch **all panelists in a single turn** so they run concurrently:
   prompt**, with permissions skipped so each researches autonomously (web + bash). Write each panelist's
   prompt to a temp file and run **two** of them in the background with the *same* prompt — two cold runs:
   ```bash
-  bash <skill_dir>/scripts/run_claude.sh /tmp/fusion_claude1_prompt.txt /tmp/fusion_claude1_out.md opus
-  bash <skill_dir>/scripts/run_claude.sh /tmp/fusion_claude2_prompt.txt /tmp/fusion_claude2_out.md opus
+  bash <skill_dir>/scripts/run_claude.sh "$RUN_DIR/claude1_prompt.txt" "$RUN_DIR/claude1_out.md" opus
+  bash <skill_dir>/scripts/run_claude.sh "$RUN_DIR/claude2_prompt.txt" "$RUN_DIR/claude2_out.md" opus
   ```
   This runs Opus 4.8 but loads the Fable 5 system prompt (the "Fable-tier" intent). It uses
   `--dangerously-skip-permissions` so the panelist uses tools without prompts — deliberate for an isolated
-  panelist, contained to a scratch dir. *(Alternative: if you don't want headless CLI subprocesses, spawn
-  two `Agent` subagents `subagent_type: general-purpose` with the same prompt instead — same effect, no
-  Fable 5 prompt.)*
+  panelist, contained to a scratch dir. Each run is wall-clock bounded by `FUSION_TIMEOUT` (default 900s).
+  *(Alternative: if you don't want headless CLI subprocesses, spawn two `Agent` subagents
+  `subagent_type: general-purpose` with the same prompt instead — same effect, no Fable 5 prompt.)*
 - **GPT-5.5 panelist** → write its prompt to a temp file and run in the background:
   ```bash
-  bash <skill_dir>/scripts/run_codex.sh /tmp/fusion_codex_prompt.txt /tmp/fusion_codex_out.md medium
+  bash <skill_dir>/scripts/run_codex.sh "$RUN_DIR/codex_prompt.txt" "$RUN_DIR/codex_out.md" medium
   ```
 - **Gemini panelist (only if `FUSION_USE_GEMINI=1`)** →
-  `bash <skill_dir>/scripts/run_gemini.sh /tmp/fusion_gemini_prompt.txt /tmp/fusion_gemini_out.md`.
+  `bash <skill_dir>/scripts/run_gemini.sh "$RUN_DIR/gemini_prompt.txt" "$RUN_DIR/gemini_out.md"`.
 
 Keep panelists isolated: never paste one panelist's output into another's prompt. A panelist that fails or
 is dropped is **absent**, never silent agreement.
 
 ## Step 2 — Anonymize for the judge
 
-Collect every returned answer and write each to an answers directory under **shuffled** labels so the judge
-can't tell which model wrote which (this is what stops a GPT-5.5 judge from favoring the GPT-5.5 panelist's
-own answer):
+Anonymize with the script (don't shuffle by hand — that's neither reliably random nor reliably remembered).
+It shuffles the returned answers into blind Panelist A/B/C labels with a real RNG and writes a durable
+`map.json`, skipping any empty/dropped panelist:
 
 ```bash
-mkdir -p /tmp/fusion_answers && rm -f /tmp/fusion_answers/panelist_*.md
-# Write each answer to panelist_A.md, panelist_B.md, panelist_C.md in a RANDOM order.
+bash <skill_dir>/scripts/anonymize.sh "$RUN_DIR/answers" \
+  "$RUN_DIR/claude1_out.md" "$RUN_DIR/claude2_out.md" "$RUN_DIR/codex_out.md"
 ```
 
-**Keep the label→model map yourself** (e.g. A=Opus-run-2, B=GPT-5.5, C=Opus-run-1). You restore real
-attribution only at synthesis. Also write the user's task verbatim to `/tmp/fusion_task.txt`.
+The label→source map lives at `$RUN_DIR/answers/map.json` (not in your head) — read it back at synthesis to
+restore real attribution. Also write the user's task verbatim to `$RUN_DIR/task.txt`.
 
 ## Step 3 — Judge (discernment)
 
 Run the GPT-5.5 judge over the anonymized answers:
 
 ```bash
-bash <skill_dir>/scripts/run_judge.sh /tmp/fusion_task.txt /tmp/fusion_answers /tmp/fusion_judge.md high
+bash <skill_dir>/scripts/run_judge.sh "$RUN_DIR/task.txt" "$RUN_DIR/answers" "$RUN_DIR/judge.md" high
 ```
 
 Read `references/judge_rubric.md`. The judge **classifies the deliverable first** (Track A: code/artifact →
 run & merge; Track B: research → five-section synthesis) and produces a structured discernment doc — it does
 **not** write the final answer.
 
-**Fallback (codex unavailable or capped):** `run_judge.sh` exits non-zero (2 = no codex, 1 = codex failed).
-When it does, **you (Opus) do the discernment yourself** using `references/judge_rubric.md` — read all
-answers and produce the same structured analysis. Note in the final output that the judge fell back to Opus.
+**Fallback (codex unavailable, capped, timed out, or off-task):** `run_judge.sh` exits non-zero (2 = no
+codex, 1 = codex failed / timed out / returned output missing the required sections — e.g. a contaminated,
+off-task judge). When it does, **you (Opus) do the discernment yourself** using `references/judge_rubric.md`
+— read all answers and produce the same structured analysis. Note in the final output that the judge fell
+back to Opus.
 
 ## Step 4 — Synthesize (Opus writes the final answer)
 
 You (Opus) read the judge's discernment doc plus the raw answers and write the final deliverable grounded
-in it. De-anonymize here: restore real panelist attribution (A/B/C → the actual models) so the user can
-trace each decision.
+in it. De-anonymize here using `$RUN_DIR/answers/map.json`: restore real panelist attribution (A/B/C → the
+actual source files/models) so the user can trace each decision.
 
 - **Track A (code/artifact):** emit the complete, merged artifact — every file, ready to run as-is. Per
   `judge_rubric.md` you got here by running both candidates and keeping what worked; **run the merged
@@ -151,6 +156,30 @@ contradictions, partial coverage, unique insights, blind spots, verdict), with r
 Name what you ran: the `SLUG`, which panelists participated, who judged, and who synthesized. If the judge
 fell back to Opus (codex missing/capped) or a panelist was dropped, say so and how to enable the fuller
 pipeline.
+
+## Step 6 — (optional) Anchor the run's provenance
+
+Off by default. The markdown audit trail from Step 5 is always the record of truth; this step is purely
+additive and must never change or block the answer you already presented. Only run it if `FUSION_ANCHOR=1`.
+
+If enabled, write the artifacts the emitter hashes into the run dir, then call it:
+
+```bash
+echo "$SLUG" > "$RUN_DIR/slug.txt"        # the SLUG from detect_panel.sh
+# save the final answer you just presented so it can be hashed:
+#   $RUN_DIR/synthesis.md   (judge.md, task.txt, answers/ + map.json already live in $RUN_DIR)
+FUSION_ANCHOR=1 SLUG="$SLUG" JUDGE="$JUDGE" SYNTH="$SYNTH" \
+  bash <skill_dir>/scripts/anchor_emit.sh "$RUN_DIR" "$SLUG" || true
+```
+
+It always writes a local **signed** `attestation.json` (hashes only — panel composition, per-answer
+sha256, judge & synthesis hashes, model ids, timestamps, the SLUG). If Anchor'd is reachable
+(`ANCHOR_API_URL`/`ANCHOR_API_TOKEN` set, `GET /api/health` ok) it also anchors `sha256(manifest)` via
+`POST /api/anchor` and prints `ANCHOR_RESULT=anchored (...)`. It degrades to `local-only` on any failure and
+**always exits 0** — never let it affect the run. Raw prompts/answers/judge/synthesis text are never
+transmitted unless `FUSION_ANCHOR_INCLUDE_CONTENT=1`. On `ANCHOR_RESULT=anchored`, append one line to the
+audit trail you presented: the `anchorId`, `manifest sha256`, and verification URL. See
+`references/provenance.md`.
 
 ## Cost & latency note
 

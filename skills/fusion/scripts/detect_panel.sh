@@ -63,7 +63,13 @@ echo "  judge       : $judge$([ "$judge" = opus4.8 ] && echo '   (codex not foun
 echo "  synthesize  : $synth"
 echo "  opus panelists run: claude --print --dangerously-skip-permissions --model opus --system-prompt-file CLAUDE-FABLE-5.md"
 echo
+# Mint a private per-run directory so concurrent Fusion runs (different sessions/projects on one machine)
+# can't clobber each other's intermediate files. The orchestrator must use THIS path for every temp file
+# in the run — never a shared /tmp/fusion_* constant.
+run_dir="$(mktemp -d "${TMPDIR:-/tmp}/fusion-run.XXXXXX")"
+
 echo "PANEL=$panel"
 echo "JUDGE=$judge"
 echo "SYNTH=$synth"
 echo "SLUG=$slug"
+echo "RUN_DIR=$run_dir"

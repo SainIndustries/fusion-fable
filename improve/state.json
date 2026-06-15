@@ -1,0 +1,20 @@
+{
+  "schema": "fusion.state/v1",
+  "goal": "Work docs/fusion-self-review.md to done: one atomic, test-passing commit per roadmap item, Fusion-designed where non-trivial, risky items escalated to a human.",
+  "iteration": 0,
+  "max_iterations": 25,
+  "fusion_calls": 0,
+  "max_fusions": 12,
+  "usd_per_fusion_est": 2.5,
+  "usd_cap_est": 40.0,
+  "max_runtime_hours": 6,
+  "deadline_epoch": 0,
+  "max_attempts_per_item": 2,
+  "consecutive_no_progress": 0,
+  "max_no_progress": 3,
+  "baseline_pass": null,
+  "started_at": null,
+  "halted": false,
+  "halt_reason": "",
+  "current_item": ""
+}

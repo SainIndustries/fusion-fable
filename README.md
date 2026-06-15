@@ -138,6 +138,23 @@ step.
 > hard decision points — have the loop fuse there and answer cheaper steps directly — and always give it a
 > concrete stop condition so it terminates.
 
+## Self-improving loop
+
+The repo can improve *itself*: `/fusion-improve` runs a goal-driven loop that works the backlog in
+`improve/roadmap.json` (seeded from `docs/fusion-self-review.md`) — each iteration picks the next item,
+designs the fix with Fusion when it's non-trivial, implements it, runs a regression gate, and commits
+atomically or reverts. A deterministic driver (`improve/run_iteration.sh`) owns all state, budget, and stop
+conditions, so the model proposes the *how* but can't loop forever, commit a regression, or auto-apply a
+risky change (those route to a human-approval gate). See [docs/self-improving-loop.md](docs/self-improving-loop.md).
+
+## Provenance (optional, Anchor'd)
+
+Every run produces an audit trail; with `FUSION_ANCHOR=1` you can make it **tamper-evident** by attesting it
+to [Anchor'd](https://github.com/SainIndustries) — a hashes-only manifest (panel composition, per-answer
+sha256, judge & synthesis hashes, model ids, the SLUG) anchored via `POST /api/anchor`, with raw prompts and
+answers never leaving the machine. It's opt-in and purely additive: the local markdown trail stays the record
+of truth, and the emitter always exits 0. See [provenance.md](skills/fusion/references/provenance.md).
+
 ## Panelist execution & the Claude Fable 5 system prompt
 
 By default this fork runs the two Opus 4.8 panelists as headless `claude` CLI subprocesses loaded with the
@@ -180,22 +197,29 @@ skills/fusion/
   SKILL.md                  fan out → anonymize → GPT-5.5 judge → Opus synthesize → present
   CLAUDE-FABLE-5.md         the Claude Fable 5 system prompt the Opus panelists load
   scripts/
-    detect_panel.sh         picks panel + judge + synthesizer; prints PANEL/JUDGE/SYNTH/SLUG
+    detect_panel.sh         picks panel + judge + synthesizer; prints PANEL/JUDGE/SYNTH/SLUG/RUN_DIR
     run_claude.sh           runs an Opus 4.8 panelist via the claude CLI under the Fable 5 system prompt
-    run_codex.sh            runs a GPT-5.5 panelist (web + bash), captures its answer
-    run_judge.sh            the discernment stage — GPT-5.5 judges the anonymized answers
-    codex_expert.sh         persistent codex domain experts (create/resume named sessions)
+    run_codex.sh            runs a GPT-5.5 panelist (model-pinned, timeout-bounded), captures its answer
+    run_judge.sh            the discernment stage — GPT-5.5 judges; validates output or falls back to Opus
+    anonymize.sh            shuffles answers into blind A/B/C labels with a real RNG + durable map.json
+    anchor_emit.sh          optional tamper-evident provenance attestation (Anchor'd; opt-in)
+    codex_expert.sh         persistent codex domain experts (per-name lock + atomic id write)
     run_gemini.sh           optional Gemini panelist (off unless FUSION_USE_GEMINI=1)
+    _lib.sh                 shared helpers (portable timeout shim)
   references/
     panel.md                why independent parallel runs (no lenses) — the panel mechanism
     judge_rubric.md         discernment (the judge) → synthesis (Opus); Track A code / Track B research
     persistent_experts.md   when and how to use persistent codex domain experts
+    provenance.md           optional Anchor'd provenance emitter — data model, config, verify
 commands/
   fusion.md                 /fusion          (auto-detect)
   fusion-gpt5.5.md          /fusion-gpt5.5   (flagship)
   fusion-opus4.8.md         /fusion-opus4.8  (zero-setup pure-Opus)
   codex-expert.md           /codex-expert    (persistent domain expert)
-install.sh                  copies the above into ~/.claude
+  fusion-improve.md         /fusion-improve  (self-improving loop)
+improve/                    the self-improvement loop: roadmap.json, state.json, run_iteration.sh, check.sh
+docs/                       self-review, self-improving-loop design
+install.sh                  copies the skill + commands into ~/.claude
 ```
 
 ## Why a panel beats one model

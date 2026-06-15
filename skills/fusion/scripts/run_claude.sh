@@ -31,6 +31,8 @@ output_file="${2:?usage: run_claude.sh <prompt_file> <output_file> [model]}"
 model="${3:-${FUSION_CLAUDE_MODEL:-opus}}"
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+. "$HERE/_lib.sh"
 SKILL_DIR="$(dirname "$HERE")"
 fable5="${FUSION_FABLE5_PROMPT:-$SKILL_DIR/CLAUDE-FABLE-5.md}"
 
@@ -47,8 +49,9 @@ fi
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/fusion-claude.XXXXXX")"
 trap 'rm -rf "$scratch"' EXIT
 
-# Run in the scratch dir so any file writes the panelist makes never touch your repo.
-( cd "$scratch" && claude \
+# Run in the scratch dir so any file writes the panelist makes never touch your repo. Wall-clock bounded
+# (FUSION_TIMEOUT, default 900s) so a wedged panelist can't hang the whole fan-out forever.
+( cd "$scratch" && fusion_run_timeout "$(fusion_default_timeout)" claude \
     --print \
     --dangerously-skip-permissions \
     --model "$model" \
@@ -56,6 +59,10 @@ trap 'rm -rf "$scratch"' EXIT
     "$(cat "$prompt_file")" ) > "$output_file" 2> "$scratch/err.log"
 
 status=$?
+if [ $status -eq 124 ]; then
+  echo "[run_claude.sh] claude timed out after $(fusion_default_timeout)s (FUSION_TIMEOUT)." >&2
+  exit 1
+fi
 if [ $status -ne 0 ] || [ ! -s "$output_file" ]; then
   echo "[run_claude.sh] claude exited $status; tail of stderr:" >&2
   tail -20 "$scratch/err.log" >&2
