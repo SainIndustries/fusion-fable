@@ -43,6 +43,14 @@ Recommended response (needs a focused repro once codex quota is free):
    hand.
 3. Until hermeticity is confirmed, document that codex stages may inherit local codex project context.
 
+**RESOLVED (2026-06-15).** Root cause located: `~/.codex` session-history/memory files (`session_index.jsonl`,
+`transcription-history.jsonl`, `external_agent_session_imports.json`) carried other-project ("Aura") context
+that `codex exec` pulled into fresh runs. Fix (by construction): `run_codex.sh` and `run_judge.sh` now run
+codex in a dedicated **hermetic `CODEX_HOME`** containing only an `auth.json` symlink (no sessions, memory,
+projects, or plugins), plus `--ignore-user-config` (helper `fusion_codex_home` in `_lib.sh`; disable with
+`FUSION_CODEX_HERMETIC=0`). Verified live: a control prompt through the hermetic runner answered exactly the
+task asked with zero cross-project leakage, and auth still worked.
+
 ---
 
 ## Part 1 — Concurrency: yes, simultaneous runs corrupt each other, silently

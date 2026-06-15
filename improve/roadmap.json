@@ -2,22 +2,336 @@
   "schema": "fusion.roadmap/v1",
   "note": "Backlog for the self-improvement loop, seeded from docs/fusion-self-review.md. Items marked done were landed in the initial fixes pass. The loop works todo items lowest-order first; risk:high items are gated for human approval. Only improve/run_iteration.sh should mutate this file.",
   "items": [
-    {"id":"P0-per-run-dirs","order":1,"priority":"P0","title":"Per-run RUN_DIR instead of machine-global /tmp paths","risk":"medium","trivial":false,"design":"none","requires_approval":false,"status":"done","attempts":1,"depends_on":[],"files":["skills/fusion/scripts/detect_panel.sh","skills/fusion/SKILL.md"],"source":"self-review Part 1","acceptance":["bash skills/fusion/scripts/detect_panel.sh | grep -q '^RUN_DIR='"]},
-    {"id":"P0-codex-model-pin","order":2,"priority":"P0","title":"Pin codex panelist model (-m gpt-5.5)","risk":"low","trivial":true,"design":"none","requires_approval":false,"status":"done","attempts":1,"depends_on":[],"files":["skills/fusion/scripts/run_codex.sh"],"source":"self-review P0","acceptance":["grep -q CODEX_PANELIST_MODEL skills/fusion/scripts/run_codex.sh"]},
-    {"id":"P0-anonymize","order":3,"priority":"P0","title":"Scripted anonymization with RNG + map.json","risk":"low","trivial":false,"design":"none","requires_approval":false,"status":"done","attempts":1,"depends_on":["P0-per-run-dirs"],"files":["skills/fusion/scripts/anonymize.sh"],"source":"self-review P0","acceptance":["test -x skills/fusion/scripts/anonymize.sh"]},
-    {"id":"P1-judge-validate","order":4,"priority":"P1","title":"Validate judge output sections; fall back to Opus if off-task","risk":"low","trivial":false,"design":"none","requires_approval":false,"status":"done","attempts":1,"depends_on":[],"files":["skills/fusion/scripts/run_judge.sh"],"source":"self-review P1 / Finding #0","acceptance":["grep -q 'Per-panelist assessment' skills/fusion/scripts/run_judge.sh"]},
-    {"id":"P1-timeouts","order":5,"priority":"P1","title":"Portable FUSION_TIMEOUT on every runner","risk":"low","trivial":false,"design":"none","requires_approval":false,"status":"done","attempts":1,"depends_on":[],"files":["skills/fusion/scripts/_lib.sh","skills/fusion/scripts/run_claude.sh","skills/fusion/scripts/run_codex.sh","skills/fusion/scripts/run_judge.sh"],"source":"self-review P1","acceptance":["grep -q fusion_run_timeout skills/fusion/scripts/_lib.sh"]},
-    {"id":"P0-expert-locks","order":6,"priority":"P0","title":"Per-name lock + atomic id write for codex experts","risk":"low","trivial":false,"design":"none","requires_approval":false,"status":"done","attempts":1,"depends_on":[],"files":["skills/fusion/scripts/codex_expert.sh"],"source":"self-review Part 1","acceptance":["grep -q 'name.lock' skills/fusion/scripts/codex_expert.sh"]},
-
-    {"id":"P0-gemini-label-truth","order":7,"priority":"P0","title":"Derive SLUG gemini label from ${GEMINI_MODEL:-gemini-2.5-pro} so provenance can't drift","risk":"low","trivial":true,"design":"none","requires_approval":false,"status":"todo","attempts":0,"max_attempts":2,"depends_on":[],"files":["skills/fusion/scripts/detect_panel.sh"],"source":"self-review P0 (SLUG/docs lying about Gemini)","acceptance":["FUSION_USE_GEMINI=1 bash skills/fusion/scripts/detect_panel.sh | grep -qi gemini"]},
-    {"id":"P1-keep-logs","order":8,"priority":"P1","title":"Honor FUSION_KEEP=1/FUSION_DEBUG=1: copy runner logs into <RUN_DIR>/logs on failure instead of deleting","risk":"low","trivial":true,"design":"none","requires_approval":false,"status":"todo","attempts":0,"max_attempts":2,"depends_on":[],"files":["skills/fusion/scripts/run_claude.sh","skills/fusion/scripts/run_codex.sh","skills/fusion/scripts/run_judge.sh"],"source":"self-review P1 (keep logs on failure)","acceptance":["grep -q FUSION_KEEP skills/fusion/scripts/run_codex.sh"]},
-    {"id":"P1-retries","order":9,"priority":"P1","title":"Bounded retry+backoff (FUSION_RETRIES=2) before declaring a panelist dead","risk":"low","trivial":true,"design":"none","requires_approval":false,"status":"todo","attempts":0,"max_attempts":2,"depends_on":[],"files":["skills/fusion/scripts/run_codex.sh","skills/fusion/scripts/run_claude.sh"],"source":"self-review P1 (retry transient failures)","acceptance":["grep -q FUSION_RETRIES skills/fusion/scripts/run_codex.sh"]},
-    {"id":"P3-detect-auth-probe","order":10,"priority":"P3","title":"detect_panel.sh should probe codex auth/quota, not just presence","risk":"low","trivial":true,"design":"none","requires_approval":false,"status":"todo","attempts":0,"max_attempts":2,"depends_on":[],"files":["skills/fusion/scripts/detect_panel.sh"],"source":"self-review P3 (detection checks presence not auth)","acceptance":["grep -qi 'login\\|auth' skills/fusion/scripts/detect_panel.sh"]},
-    {"id":"P3-config-source","order":11,"priority":"P3","title":"Single config.sh as the source of truth for model ids (sourced by all scripts)","risk":"medium","trivial":false,"design":"fusion","requires_approval":false,"status":"todo","attempts":0,"max_attempts":2,"depends_on":[],"files":["skills/fusion/scripts/config.sh","skills/fusion/scripts/run_codex.sh","skills/fusion/scripts/run_judge.sh","skills/fusion/scripts/run_claude.sh","skills/fusion/scripts/run_gemini.sh"],"source":"self-review P3 (one config source of truth)","acceptance":["test -f skills/fusion/scripts/config.sh"]},
-    {"id":"P2-cache","order":12,"priority":"P2","title":"Content-addressed cache keyed on sha256(prompt+model+effort) under $FUSION_HOME/cache, TTL + FUSION_NO_CACHE","risk":"medium","trivial":false,"design":"fusion","requires_approval":false,"status":"todo","attempts":0,"max_attempts":2,"depends_on":[],"files":["skills/fusion/scripts/cache.sh","skills/fusion/scripts/run_codex.sh","skills/fusion/scripts/run_claude.sh"],"source":"self-review P2 (biggest cost lever for /loop)","acceptance":["test -f skills/fusion/scripts/cache.sh"]},
-    {"id":"P3-tests-harness","order":13,"priority":"P3","title":"tests/ with stub claude/codex/gemini shims on PATH + FUSION_DRY_RUN; check.sh upgrades to it","risk":"medium","trivial":false,"design":"fusion","requires_approval":false,"status":"todo","attempts":0,"max_attempts":2,"depends_on":[],"files":["tests/run.sh","tests/stubs"],"source":"self-review P3 (add tests + dry run)","acceptance":["test -x tests/run.sh","bash tests/run.sh"]},
-
-    {"id":"F0-codex-hermetic","order":20,"priority":"P0","title":"Make codex stages hermetic (Finding #0: ~/.codex global state leaked Aura context into panelist+judge)","risk":"high","trivial":false,"design":"fusion","requires_approval":true,"approved":false,"status":"todo","attempts":0,"max_attempts":2,"depends_on":[],"files":["skills/fusion/scripts/run_codex.sh","skills/fusion/scripts/run_judge.sh"],"source":"self-review Finding #0","acceptance":["grep -qiE 'ephemeral|FUSION_CODEX_HERMETIC|ignore-user-config' skills/fusion/scripts/run_codex.sh"]},
-    {"id":"P3-install-backup","order":21,"priority":"P3","title":"install.sh backs up same-named user commands before cp overwrites them","risk":"high","trivial":false,"design":"none","requires_approval":true,"approved":false,"status":"todo","attempts":0,"max_attempts":2,"depends_on":[],"files":["install.sh"],"source":"self-review P3 (install clobbers user commands)","acceptance":["grep -qi 'backup\\|\\.bak' install.sh"]}
+    {
+      "id": "P0-per-run-dirs",
+      "order": 1,
+      "priority": "P0",
+      "title": "Per-run RUN_DIR instead of machine-global /tmp paths",
+      "risk": "medium",
+      "trivial": false,
+      "design": "none",
+      "requires_approval": false,
+      "status": "done",
+      "attempts": 1,
+      "depends_on": [],
+      "files": [
+        "skills/fusion/scripts/detect_panel.sh",
+        "skills/fusion/SKILL.md"
+      ],
+      "source": "self-review Part 1",
+      "acceptance": [
+        "bash skills/fusion/scripts/detect_panel.sh | grep -q '^RUN_DIR='"
+      ]
+    },
+    {
+      "id": "P0-codex-model-pin",
+      "order": 2,
+      "priority": "P0",
+      "title": "Pin codex panelist model (-m gpt-5.5)",
+      "risk": "low",
+      "trivial": true,
+      "design": "none",
+      "requires_approval": false,
+      "status": "done",
+      "attempts": 1,
+      "depends_on": [],
+      "files": [
+        "skills/fusion/scripts/run_codex.sh"
+      ],
+      "source": "self-review P0",
+      "acceptance": [
+        "grep -q CODEX_PANELIST_MODEL skills/fusion/scripts/run_codex.sh"
+      ]
+    },
+    {
+      "id": "P0-anonymize",
+      "order": 3,
+      "priority": "P0",
+      "title": "Scripted anonymization with RNG + map.json",
+      "risk": "low",
+      "trivial": false,
+      "design": "none",
+      "requires_approval": false,
+      "status": "done",
+      "attempts": 1,
+      "depends_on": [
+        "P0-per-run-dirs"
+      ],
+      "files": [
+        "skills/fusion/scripts/anonymize.sh"
+      ],
+      "source": "self-review P0",
+      "acceptance": [
+        "test -x skills/fusion/scripts/anonymize.sh"
+      ]
+    },
+    {
+      "id": "P1-judge-validate",
+      "order": 4,
+      "priority": "P1",
+      "title": "Validate judge output sections; fall back to Opus if off-task",
+      "risk": "low",
+      "trivial": false,
+      "design": "none",
+      "requires_approval": false,
+      "status": "done",
+      "attempts": 1,
+      "depends_on": [],
+      "files": [
+        "skills/fusion/scripts/run_judge.sh"
+      ],
+      "source": "self-review P1 / Finding #0",
+      "acceptance": [
+        "grep -q 'Per-panelist assessment' skills/fusion/scripts/run_judge.sh"
+      ]
+    },
+    {
+      "id": "P1-timeouts",
+      "order": 5,
+      "priority": "P1",
+      "title": "Portable FUSION_TIMEOUT on every runner",
+      "risk": "low",
+      "trivial": false,
+      "design": "none",
+      "requires_approval": false,
+      "status": "done",
+      "attempts": 1,
+      "depends_on": [],
+      "files": [
+        "skills/fusion/scripts/_lib.sh",
+        "skills/fusion/scripts/run_claude.sh",
+        "skills/fusion/scripts/run_codex.sh",
+        "skills/fusion/scripts/run_judge.sh"
+      ],
+      "source": "self-review P1",
+      "acceptance": [
+        "grep -q fusion_run_timeout skills/fusion/scripts/_lib.sh"
+      ]
+    },
+    {
+      "id": "P0-expert-locks",
+      "order": 6,
+      "priority": "P0",
+      "title": "Per-name lock + atomic id write for codex experts",
+      "risk": "low",
+      "trivial": false,
+      "design": "none",
+      "requires_approval": false,
+      "status": "done",
+      "attempts": 1,
+      "depends_on": [],
+      "files": [
+        "skills/fusion/scripts/codex_expert.sh"
+      ],
+      "source": "self-review Part 1",
+      "acceptance": [
+        "grep -q 'name.lock' skills/fusion/scripts/codex_expert.sh"
+      ]
+    },
+    {
+      "id": "P0-gemini-label-truth",
+      "order": 7,
+      "priority": "P0",
+      "title": "Derive SLUG gemini label from ${GEMINI_MODEL:-gemini-2.5-pro} so provenance can't drift",
+      "risk": "low",
+      "trivial": true,
+      "design": "none",
+      "requires_approval": false,
+      "status": "todo",
+      "attempts": 0,
+      "max_attempts": 2,
+      "depends_on": [],
+      "files": [
+        "skills/fusion/scripts/detect_panel.sh"
+      ],
+      "source": "self-review P0 (SLUG/docs lying about Gemini)",
+      "acceptance": [
+        "FUSION_USE_GEMINI=1 bash skills/fusion/scripts/detect_panel.sh | grep -qi gemini"
+      ]
+    },
+    {
+      "id": "P1-keep-logs",
+      "order": 8,
+      "priority": "P1",
+      "title": "Honor FUSION_KEEP=1/FUSION_DEBUG=1: copy runner logs into <RUN_DIR>/logs on failure instead of deleting",
+      "risk": "low",
+      "trivial": true,
+      "design": "none",
+      "requires_approval": false,
+      "status": "todo",
+      "attempts": 0,
+      "max_attempts": 2,
+      "depends_on": [],
+      "files": [
+        "skills/fusion/scripts/run_claude.sh",
+        "skills/fusion/scripts/run_codex.sh",
+        "skills/fusion/scripts/run_judge.sh"
+      ],
+      "source": "self-review P1 (keep logs on failure)",
+      "acceptance": [
+        "grep -q FUSION_KEEP skills/fusion/scripts/run_codex.sh"
+      ]
+    },
+    {
+      "id": "P1-retries",
+      "order": 9,
+      "priority": "P1",
+      "title": "Bounded retry+backoff (FUSION_RETRIES=2) before declaring a panelist dead",
+      "risk": "low",
+      "trivial": true,
+      "design": "none",
+      "requires_approval": false,
+      "status": "todo",
+      "attempts": 0,
+      "max_attempts": 2,
+      "depends_on": [],
+      "files": [
+        "skills/fusion/scripts/run_codex.sh",
+        "skills/fusion/scripts/run_claude.sh"
+      ],
+      "source": "self-review P1 (retry transient failures)",
+      "acceptance": [
+        "grep -q FUSION_RETRIES skills/fusion/scripts/run_codex.sh"
+      ]
+    },
+    {
+      "id": "P3-detect-auth-probe",
+      "order": 10,
+      "priority": "P3",
+      "title": "detect_panel.sh should probe codex auth/quota, not just presence",
+      "risk": "low",
+      "trivial": true,
+      "design": "none",
+      "requires_approval": false,
+      "status": "todo",
+      "attempts": 0,
+      "max_attempts": 2,
+      "depends_on": [],
+      "files": [
+        "skills/fusion/scripts/detect_panel.sh"
+      ],
+      "source": "self-review P3 (detection checks presence not auth)",
+      "acceptance": [
+        "grep -qi 'login\\|auth' skills/fusion/scripts/detect_panel.sh"
+      ]
+    },
+    {
+      "id": "P3-config-source",
+      "order": 11,
+      "priority": "P3",
+      "title": "Single config.sh as the source of truth for model ids (sourced by all scripts)",
+      "risk": "medium",
+      "trivial": false,
+      "design": "fusion",
+      "requires_approval": false,
+      "status": "todo",
+      "attempts": 0,
+      "max_attempts": 2,
+      "depends_on": [],
+      "files": [
+        "skills/fusion/scripts/config.sh",
+        "skills/fusion/scripts/run_codex.sh",
+        "skills/fusion/scripts/run_judge.sh",
+        "skills/fusion/scripts/run_claude.sh",
+        "skills/fusion/scripts/run_gemini.sh"
+      ],
+      "source": "self-review P3 (one config source of truth)",
+      "acceptance": [
+        "test -f skills/fusion/scripts/config.sh"
+      ]
+    },
+    {
+      "id": "P2-cache",
+      "order": 12,
+      "priority": "P2",
+      "title": "Content-addressed cache keyed on sha256(prompt+model+effort) under $FUSION_HOME/cache, TTL + FUSION_NO_CACHE",
+      "risk": "medium",
+      "trivial": false,
+      "design": "fusion",
+      "requires_approval": false,
+      "status": "todo",
+      "attempts": 0,
+      "max_attempts": 2,
+      "depends_on": [],
+      "files": [
+        "skills/fusion/scripts/cache.sh",
+        "skills/fusion/scripts/run_codex.sh",
+        "skills/fusion/scripts/run_claude.sh"
+      ],
+      "source": "self-review P2 (biggest cost lever for /loop)",
+      "acceptance": [
+        "test -f skills/fusion/scripts/cache.sh"
+      ]
+    },
+    {
+      "id": "P3-tests-harness",
+      "order": 13,
+      "priority": "P3",
+      "title": "tests/ with stub claude/codex/gemini shims on PATH + FUSION_DRY_RUN; check.sh upgrades to it",
+      "risk": "medium",
+      "trivial": false,
+      "design": "fusion",
+      "requires_approval": false,
+      "status": "todo",
+      "attempts": 0,
+      "max_attempts": 2,
+      "depends_on": [],
+      "files": [
+        "tests/run.sh",
+        "tests/stubs"
+      ],
+      "source": "self-review P3 (add tests + dry run)",
+      "acceptance": [
+        "test -x tests/run.sh",
+        "bash tests/run.sh"
+      ]
+    },
+    {
+      "id": "F0-codex-hermetic",
+      "order": 20,
+      "priority": "P0",
+      "title": "Make codex stages hermetic (Finding #0: ~/.codex global state leaked Aura context into panelist+judge)",
+      "risk": "high",
+      "trivial": false,
+      "design": "fusion",
+      "requires_approval": true,
+      "approved": true,
+      "status": "done",
+      "attempts": 1,
+      "max_attempts": 2,
+      "depends_on": [],
+      "files": [
+        "skills/fusion/scripts/run_codex.sh",
+        "skills/fusion/scripts/run_judge.sh"
+      ],
+      "source": "self-review Finding #0",
+      "acceptance": [
+        "grep -qiE 'ephemeral|FUSION_CODEX_HERMETIC|ignore-user-config' skills/fusion/scripts/run_codex.sh"
+      ],
+      "commit": "9296139",
+      "resolution": "Hermetic CODEX_HOME (auth-only) + --ignore-user-config in run_codex.sh & run_judge.sh; verified live: control prompt stayed on-task with 0 cross-project leakage."
+    },
+    {
+      "id": "P3-install-backup",
+      "order": 21,
+      "priority": "P3",
+      "title": "install.sh backs up same-named user commands before cp overwrites them",
+      "risk": "high",
+      "trivial": false,
+      "design": "none",
+      "requires_approval": true,
+      "approved": false,
+      "status": "todo",
+      "attempts": 0,
+      "max_attempts": 2,
+      "depends_on": [],
+      "files": [
+        "install.sh"
+      ],
+      "source": "self-review P3 (install clobbers user commands)",
+      "acceptance": [
+        "grep -qi 'backup\\|\\.bak' install.sh"
+      ]
+    }
   ]
 }
