@@ -116,8 +116,13 @@ EOF
   done
 } > "$prompt_file"
 
+# Hermetic codex home (auth only) + ignore user config so the judge can't inherit cross-project context
+# from ~/.codex (Finding #0 — a contaminated judge once confabulated an unrelated project's task).
+export CODEX_HOME="$(fusion_codex_home)"
+
 fusion_run_timeout "$(fusion_default_timeout)" codex exec \
   --skip-git-repo-check \
+  --ignore-user-config \
   --cd "$scratch" \
   -s workspace-write \
   -c tools.web_search=true \

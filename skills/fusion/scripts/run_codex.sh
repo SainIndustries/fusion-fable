@@ -31,8 +31,13 @@ model="${CODEX_PANELIST_MODEL:-gpt-5.5}"
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/fusion-codex.XXXXXX")"
 trap 'rm -rf "$scratch"' EXIT
 
+# Hermetic codex home (auth only) + ignore user config, so this "fresh" run can't inherit cross-project
+# session history / memory / project config from ~/.codex (Finding #0). Disable with FUSION_CODEX_HERMETIC=0.
+export CODEX_HOME="$(fusion_codex_home)"
+
 fusion_run_timeout "$(fusion_default_timeout)" codex exec \
   --skip-git-repo-check \
+  --ignore-user-config \
   --cd "$scratch" \
   -s workspace-write \
   -c tools.web_search=true \
