@@ -36,18 +36,27 @@ PY
 }
 
 fetch_frames() {
-  echo "[fetch] FRAMES -> $HERE/frames.jsonl (N=$N)  [needs: pip install datasets]"
+  # FRAMES via HuggingFace datasets-server REST (no `datasets` lib needed). 824 multi-hop Q with gold.
+  echo "[fetch] FRAMES -> $HERE/frames.jsonl (N=$N)"
   py - "$N" "$HERE/frames.jsonl" <<'PY'
-import sys, json, random
+import sys, json, random, urllib.request
 N, out = int(sys.argv[1]), sys.argv[2]
-from datasets import load_dataset
-ds = load_dataset("google/frames-benchmark", split="test")
-idx = list(range(len(ds))); random.seed(7); random.shuffle(idx)
+BASE = "https://datasets-server.huggingface.co/rows?dataset=google/frames-benchmark&config=default&split=test"
+def page(off, length):
+    u = f"{BASE}&offset={off}&length={length}"
+    return json.load(urllib.request.urlopen(u, timeout=60))
+first = page(0, 100)
+total = first["num_rows_total"]
+rows = list(first["rows"])
+off = 100
+while off < total:
+    rows += page(off, 100)["rows"]; off += 100
+recs = [{"Prompt": r["row"]["Prompt"], "Answer": r["row"]["Answer"]} for r in rows]
+random.seed(7); random.shuffle(recs)
 with open(out, "w") as f:
-    for k, i in enumerate(idx[:N]):
-        r = ds[i]
+    for k, r in enumerate(recs[:N]):
         f.write(json.dumps({"id": f"frames-{k}", "question": r["Prompt"], "gold": r["Answer"]}) + "\n")
-print(f"wrote {min(N,len(ds))} items")
+print(f"wrote {min(N,len(recs))} of {total} items")
 PY
 }
 
