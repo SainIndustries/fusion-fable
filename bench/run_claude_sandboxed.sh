@@ -35,9 +35,12 @@ DENY=(--disallowedTools "Bash" "Read" "Glob" "Grep" "Edit" "Write" "NotebookEdit
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/bench-claude.XXXXXX")"
 trap 'rm -rf "$scratch"' EXIT
 
+# Capture the prompt BEFORE cd'ing into scratch — the caller may pass a relative path, which would not
+# resolve once we're inside $scratch. (fable5 is already absolute via SCRIPTS_DIR.)
+prompt_content="$(cat "$prompt_file")"
 ( cd "$scratch" && fusion_run_timeout "$(fusion_default_timeout)" claude \
     --print --model "$model" --system-prompt-file "$fable5" "${DENY[@]}" \
-    < "$prompt_file" ) > "$output_file" 2> "$scratch/err.log"
+    <<<"$prompt_content" ) > "$output_file" 2> "$scratch/err.log"
 
 status=$?
 if [ $status -eq 124 ]; then echo "[run_claude_sandboxed] timed out after $(fusion_default_timeout)s" >&2; exit 1; fi
