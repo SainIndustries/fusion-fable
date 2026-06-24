@@ -42,7 +42,11 @@ total=0; done_n=0
 while IFS= read -r item; do
   [ -n "$item" ] || continue
   item_id="$(echo "$item" | jq -r '.id')"
-  item_file="$out/items/$item_id.json"; mkdir -p "$out/items"; echo "$item" > "$item_file"
+  # Write a QUESTIONS-ONLY item file into the run tree (no gold) so nothing the panelist could reach holds
+  # the answer key. Gold is kept here in the driver and handed to grade.sh inline via BENCH_GOLD.
+  item_gold="$(echo "$item" | jq -r '.gold')"
+  item_file="$out/items/$item_id.json"; mkdir -p "$out/items"
+  echo "$item" | jq -c '{id,question}' > "$item_file"
   for arm in "${arms[@]}"; do
     for r in $(seq 1 "$repeats"); do
       total=$((total+1))
@@ -54,7 +58,7 @@ while IFS= read -r item; do
       echo "[run_bench] === $key ==="
       ARMS_FILE="$arms_file" bash "$HERE/run_arm.sh" "$arm" "$item_file" "$rdir" || true
       if [ -s "$rdir/result.json" ]; then
-        bash "$HERE/grade.sh" "$rdir/result.json" "$item_file" "$rdir/verdict.json" || true
+        BENCH_GOLD="$item_gold" bash "$HERE/grade.sh" "$rdir/result.json" "$item_file" "$rdir/verdict.json" || true
         # merge result + verdict + key into one graded line
         jq -c -n --slurpfile res "$rdir/result.json" --slurpfile ver "$rdir/verdict.json" \
           --arg key "$key" --argjson repeat "$r" \

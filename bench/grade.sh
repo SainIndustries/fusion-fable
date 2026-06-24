@@ -19,7 +19,9 @@ out="${3:?out_verdict_json}"
 grader="${GRADER_MODEL:-gpt5.5}"
 
 question="$(jq -r '.question' "$item_file")"
-gold="$(jq -r '.gold' "$item_file")"
+# Gold comes from the BENCH_GOLD env (set inline by run_bench, never exported to panelists) so it need not
+# live in any file the panelist could read. Falls back to the item file's .gold for standalone grading.
+gold="${BENCH_GOLD:-$(jq -r '.gold // empty' "$item_file")}"
 candidate="$(jq -r '.final_answer' "$result_json")"
 
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/bench-grade.XXXXXX")"

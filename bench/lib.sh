@@ -132,16 +132,23 @@ bench_extract_final() {
 }
 
 # bench_run_model <model> <prompt_file> <out_file> — dispatch one model as a PANELIST/single answer.
-# opus|sonnet|haiku -> run_claude.sh (Fable 5 system prompt, like the real panel)
-# gpt5.5            -> run_codex.sh
+# opus|sonnet|haiku -> run_claude_sandboxed.sh (web-only — see that script's header for WHY the shipped
+#                      skip-permissions panelist CANNOT be used in a benchmark: it reads the answer key off
+#                      disk). Set BENCH_SANDBOX=0 to use the cheatable shipped run_claude.sh anyway.
+# gpt5.5            -> run_codex.sh (codex's seatbelt sandbox already blocks the repo read)
 # gemini            -> run_gemini.sh
 # Returns the script's exit status (non-zero = dropped panelist; caller treats as absent).
 bench_run_model() {
   local model="$1" prompt="$2" out="$3"
   case "$model" in
-    opus|sonnet|haiku) bash "$SCRIPTS_DIR/run_claude.sh" "$prompt" "$out" "$model" ;;
-    gpt5.5)            bash "$SCRIPTS_DIR/run_codex.sh"  "$prompt" "$out" "${BENCH_CODEX_EFFORT:-medium}" ;;
-    gemini)            bash "$SCRIPTS_DIR/run_gemini.sh" "$prompt" "$out" ;;
+    opus|sonnet|haiku)
+      if [ "${BENCH_SANDBOX:-1}" = "1" ]; then
+        bash "$BENCH_DIR/run_claude_sandboxed.sh" "$prompt" "$out" "$model"
+      else
+        bash "$SCRIPTS_DIR/run_claude.sh" "$prompt" "$out" "$model"
+      fi ;;
+    gpt5.5)  bash "$SCRIPTS_DIR/run_codex.sh"  "$prompt" "$out" "${BENCH_CODEX_EFFORT:-medium}" ;;
+    gemini)  bash "$SCRIPTS_DIR/run_gemini.sh" "$prompt" "$out" ;;
     *) echo "[bench] unknown model: $model" >&2; return 64 ;;
   esac
 }
