@@ -1,0 +1,8 @@
+{"id":"smoke-au","question":"What is the chemical symbol for the element gold?","gold":"Au"}
+{"id":"smoke-capital-au","question":"What is the capital city of Australia?","gold":"Canberra"}
+{"id":"smoke-speed-light","question":"What is the speed of light in vacuum, to three significant figures, in meters per second?","gold":"2.998 x 10^8 m/s (approximately 299,792,458 m/s)"}
+{"id":"smoke-primes","question":"How many prime numbers are there strictly between 10 and 30?","gold":"6 (11, 13, 17, 19, 23, 29)"}
+{"id":"smoke-shakespeare","question":"Who wrote the play 'Hamlet'?","gold":"William Shakespeare"}
+{"id":"smoke-planets","question":"How many planets are in the Solar System under the current IAU definition?","gold":"8"}
+{"id":"smoke-sqrt","question":"What is the square root of 144?","gold":"12"}
+{"id":"smoke-h2o","question":"What is the common name for the compound with chemical formula H2O?","gold":"Water"}
