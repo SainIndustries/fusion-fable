@@ -91,6 +91,41 @@ few operational changes:
 `scripts/detect_panel.sh` auto-detects which CLIs are installed and prints the richest pipeline available,
 falling back gracefully when one is missing.
 
+## Harness variants — models will keep changing
+
+Models come and go; the pipeline doesn't. Everything that distinguishes one Fusion harness from another —
+panel composition, judge, model strings — is an env knob, so **each harness is a named preset file** in
+`skills/fusion/variants/*.env`, selectable per run:
+
+```bash
+FUSION_VARIANT=opus4.8-era   # …then invoke /fusion as usual, or:
+/fusion-variant opus4.8-era  <prompt>   # first word = variant, rest = task
+```
+
+Shipped presets:
+
+| Variant | Panel | Judge | Notes |
+| --- | --- | --- | --- |
+| `fable5-crossmodel` | Fable 5 + Opus 4.8 + GPT-5.5 | Fable 5 | the default, given a name |
+| `fable5-gpt5.5-judged` | Fable 5 + Opus 4.8 + GPT-5.5 | GPT-5.5 | cross-family judging (`/fusion-gpt5.5`) |
+| `fable5-duo` | Fable 5 + Opus 4.8 | Fable 5 | claude-CLI only (`/fusion-fable5`) |
+| `opus4.8-era` | 2× Opus 4.8 (Fable persona) + GPT-5.5 | GPT-5.5 | the original pre-Fable-GA harness |
+
+Presets set *defaults* — anything you export explicitly still wins — and may compose (`FUSION_VARIANT=…`
+plus `FUSION_USE_GEMINI=1`, a different `FUSION_TIMEOUT`, etc.). **When the next model era arrives** (a new
+Claude tier, a new GPT, a new CLI), the play is: copy the closest preset, point its model strings at the
+new thing, commit it on `main` — one file, no branches. If a new model needs a genuinely new *runner*
+(different CLI), add a `run_<cli>.sh` and reference its panel token from the preset.
+
+Repo conventions around this:
+
+- **`main`** always holds the current-best default harness *plus every preset* — old harnesses stay
+  runnable from main via `FUSION_VARIANT`, sharing all script fixes.
+- **`era/*` tags** freeze each milestone immutably (`era/opus4.8` = the pre-Fable harness,
+  `era/fable5-crossmodel` = this one) — check one out to reproduce a full repo state exactly.
+- **`dev`** trails at the previous era's tip as a working branch for archaeology and back-porting; it is
+  not where new work lands.
+
 ## Install
 
 ```bash
@@ -116,6 +151,7 @@ synthesizer is your session model. Then invoke it explicitly — three equivalen
   /fusion           <prompt>   # cross-model panel, Fable judges + synthesizes (recommended default)
   /fusion-gpt5.5    <prompt>   # same panel, but GPT-5.5 judges instead of Fable
   /fusion-fable5    <prompt>   # zero-setup: Fable 5 + Opus 4.8 via claude CLI only (no codex)
+  /fusion-variant   <name> <prompt>   # any named harness preset from skills/fusion/variants/
   ```
 - **Persistent codex expert** — for long *iterative* work, not a one-shot question:
   ```
@@ -241,6 +277,11 @@ skills/fusion/
     codex_expert.sh         persistent codex domain experts (per-name lock + atomic id write)
     run_gemini.sh           optional Gemini panelist (off unless FUSION_USE_GEMINI=1)
     _lib.sh                 shared helpers (portable timeout shim)
+  variants/
+    fable5-crossmodel.env   the default harness, as a named preset
+    fable5-gpt5.5-judged.env  cross-family judging (GPT-5.5 adjudicates)
+    fable5-duo.env          claude-CLI-only panel
+    opus4.8-era.env         the original pre-Fable-GA harness, preserved
   references/
     panel.md                why independent parallel runs (no lenses) — the panel mechanism
     judge_rubric.md         discernment (the judge) → synthesis (Fable); Track A code / Track B research
@@ -250,6 +291,7 @@ commands/
   fusion.md                 /fusion          (cross-model panel, Fable judges — default)
   fusion-gpt5.5.md          /fusion-gpt5.5   (same panel, GPT-5.5 judges)
   fusion-fable5.md          /fusion-fable5   (zero-setup all-Claude: Fable 5 + Opus 4.8)
+  fusion-variant.md         /fusion-variant  (run any named harness preset)
   codex-expert.md           /codex-expert    (persistent domain expert)
   fusion-improve.md         /fusion-improve  (self-improving loop)
 improve/                    the self-improvement loop: roadmap.json, state.json, run_iteration.sh, check.sh

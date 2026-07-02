@@ -45,3 +45,29 @@ fusion_codex_home() {
   fi
   echo "$home"
 }
+
+# fusion_load_variant — apply a named HARNESS PRESET from <skill_dir>/variants/<name>.env.
+#
+# A "variant" is one Fusion harness: a panel composition + judge + model strings, captured as a small env
+# file. This is how the project swaps harnesses as models evolve — a new model era is a new preset file on
+# main, not a branch. Select one by exporting FUSION_VARIANT=<name> (or via /fusion-variant).
+#
+# This runs automatically when _lib.sh is sourced, so EVERY stage of a run — detect_panel.sh and all the
+# runner scripts — sees the same preset as long as FUSION_VARIANT is set for each call. Presets assign
+# DEFAULTS only (: "${VAR:=...}"), so anything you export explicitly still wins over the preset.
+# Presets may reference $SKILL_DIR (the installed skill root), e.g. for FUSION_FABLE5_PROMPT.
+fusion_load_variant() {
+  [ -n "${FUSION_VARIANT:-}" ] || return 0
+  local here vfile
+  here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  SKILL_DIR="$(dirname "$here")"
+  vfile="$SKILL_DIR/variants/${FUSION_VARIANT}.env"
+  if [ -f "$vfile" ]; then
+    # shellcheck source=/dev/null
+    . "$vfile"
+  else
+    echo "[fusion] unknown FUSION_VARIANT '$FUSION_VARIANT' (no $vfile) — preset ignored." >&2
+    FUSION_VARIANT=""   # don't let a bogus name label the run (e.g. in the SLUG)
+  fi
+}
+fusion_load_variant

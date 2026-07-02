@@ -22,7 +22,8 @@ chmod +x "$CLAUDE_DIR/skills/fusion/scripts/"*.sh
 
 echo "✓ Installed Fusion-Fable (Sain Industries fork) into $CLAUDE_DIR"
 echo "    skill    : $CLAUDE_DIR/skills/fusion"
-echo "    commands : /fusion  /fusion-gpt5.5  /fusion-fable5  /codex-expert"
+echo "    commands : /fusion  /fusion-gpt5.5  /fusion-fable5  /fusion-variant  /codex-expert"
+echo "    variants : $(cd "$CLAUDE_DIR/skills/fusion/variants" 2>/dev/null && ls -- *.env 2>/dev/null | sed 's/\.env$//' | tr '\n' ' ')"
 echo
 
 # Report what the pipeline can do on this machine.

@@ -22,6 +22,11 @@
 # Output: human-readable lines, then a machine-parseable block the orchestrator greps:
 #   PANEL=<comma-separated panelists>   JUDGE=<model>   SYNTH=<model>   SLUG=<slug>
 
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+. "$HERE/_lib.sh"   # also applies FUSION_VARIANT=<name> presets from <skill_dir>/variants/
+SKILL_DIR="$(dirname "$HERE")"
+
 have() { command -v "$1" >/dev/null 2>&1; }
 
 codex_ok=false; gemini_ok=false
@@ -41,22 +46,35 @@ printf "  gpt5.5       : %s (codex CLI; panelist — judges only when FUSION_JUD
   "$([ "$codex_ok" = true ] && echo yes || echo NO)"
 printf "  gemini3.1pro : %s (optional extra panelist; off unless FUSION_USE_GEMINI=1)\n" \
   "$([ "$gemini_ok" = true ] && echo yes || echo NO)"
+if [ -d "$SKILL_DIR/variants" ]; then
+  variants="$(cd "$SKILL_DIR/variants" && ls -- *.env 2>/dev/null | sed 's/\.env$//' | tr '\n' ' ')"
+  echo "  variants     : ${variants:-none} (select with FUSION_VARIANT=<name> or /fusion-variant)"
+  [ -n "${FUSION_VARIANT:-}" ] && echo "  ACTIVE VARIANT: $FUSION_VARIANT"
+fi
 echo
 
-# --- Panel: one Fable 5 + one Opus 4.8 (claude CLI) + one GPT-5.5 (codex). Gemini only when opted in. ---
-panel=""
-panel_label=""
-if $claude_ok; then
-  panel="fable5,opus4.8"
-  panel_label="fable5+opus4.8"
-fi
-if $codex_ok; then
-  panel="${panel:+$panel,}gpt5.5"
-  panel_label="${panel_label:+$panel_label+}gpt5.5"
-fi
-if [ "${FUSION_USE_GEMINI:-0}" = "1" ] && $gemini_ok; then
-  panel="$panel,gemini3.1pro"
-  panel_label="${panel_label}+gemini3.1pro"
+# --- Panel: FUSION_PANEL (usually via a variant preset) wins verbatim; otherwise build from what's
+# --- installed: one Fable 5 + one Opus 4.8 (claude CLI) + one GPT-5.5 (codex). Gemini only when opted in.
+if [ -n "${FUSION_PANEL:-}" ]; then
+  panel="$FUSION_PANEL"
+  panel_label="${FUSION_PANEL//,/+}"
+  case ",$panel," in *,gpt5.5,*) $codex_ok  || echo "WARNING: panel names gpt5.5 but codex CLI is missing — that panelist will be dropped as absent." ;; esac
+  case ",$panel," in *,fable5,*|*,opus4.8,*) $claude_ok || echo "WARNING: panel names a claude panelist but the claude CLI is missing." ;; esac
+else
+  panel=""
+  panel_label=""
+  if $claude_ok; then
+    panel="fable5,opus4.8"
+    panel_label="fable5+opus4.8"
+  fi
+  if $codex_ok; then
+    panel="${panel:+$panel,}gpt5.5"
+    panel_label="${panel_label:+$panel_label+}gpt5.5"
+  fi
+  if [ "${FUSION_USE_GEMINI:-0}" = "1" ] && $gemini_ok; then
+    panel="$panel,gemini3.1pro"
+    panel_label="${panel_label}+gemini3.1pro"
+  fi
 fi
 if [ -z "$panel" ]; then
   echo "ERROR: neither the claude nor the codex CLI is available — no panel can run." >&2
@@ -78,7 +96,7 @@ fi
 # --- Synthesizer: always Fable 5. ---
 synth="fable5"
 
-slug="${panel_label}·judge:${judge}·synth:${synth}"
+slug="${FUSION_VARIANT:+$FUSION_VARIANT·}${panel_label}·judge:${judge}·synth:${synth}"
 
 echo "recommended pipeline:"
 echo "  panel       : $panel"

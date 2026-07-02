@@ -88,6 +88,13 @@ It prints a machine-parseable block — grep these:
 If the user named a panel or judge, honor it — but if a required CLI is missing, say so and fall back
 rather than failing. Otherwise use the detector's recommendation.
 
+**Variants — swapping whole harnesses.** `<skill_dir>/variants/*.env` are named presets of the same knobs
+(panel composition, judge, model strings) — one file per harness era or combination (e.g.
+`fable5-crossmodel`, `opus4.8-era`). If the user named one (or invoked `/fusion-variant`), prefix **every**
+script call in this run — `detect_panel.sh` and all runners — with `FUSION_VARIANT=<name>`; the scripts
+load the preset themselves via `_lib.sh`, and explicitly exported env vars still override it. The detector
+lists available variants and folds the active one into the `SLUG`.
+
 **Is this even a panel task?** If the user wants long *iterative* work (debug this over many turns, drive
 this migration), that's not a one-shot panel — read `references/persistent_experts.md` and use
 `scripts/codex_expert.sh` instead.
@@ -118,6 +125,11 @@ Launch **all panelists in a single turn** so they run concurrently:
   ```
 - **Gemini panelist (only if `FUSION_USE_GEMINI=1`)** →
   `bash <skill_dir>/scripts/run_gemini.sh "$RUN_DIR/gemini_prompt.txt" "$RUN_DIR/gemini_out.md"`.
+
+Map each `PANEL=` token to its runner: `fable5` → `run_claude.sh` (default model), `opus4.8` →
+`run_claude.sh … opus`, `gpt5.5` → `run_codex.sh`, `gemini3.1pro` → `run_gemini.sh`. **Duplicate tokens are
+independent cold runs** of the same runner (e.g. a variant panel `opus4.8,opus4.8,gpt5.5` launches
+`run_claude.sh` twice with separate prompt/output files).
 
 Keep panelists isolated: never paste one panelist's output into another's prompt. A panelist that fails or
 is dropped is **absent**, never silent agreement.
