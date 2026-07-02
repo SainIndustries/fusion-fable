@@ -1,17 +1,18 @@
 ---
 name: fusion
 description: >-
-  Answer a hard question by fanning it out to a PANEL of models running in parallel — each answering
-  independently with web search and bash, none seeing the others' work — then having GPT-5.5 (codex) JUDGE
-  the answers into a structured discernment (per-panelist assessment, consensus, contradictions, partial
-  coverage, unique insights, blind spots, verdict) and Opus 4.8 SYNTHESIZE the final answer grounded in it.
-  The default panel is two independent Opus 4.8 runs + GPT-5.5; GPT-5.5 judges (discrimination), Opus
-  writes (synthesis). If codex is unavailable, Opus both judges and writes. Opus always writes the final
-  answer — the pipeline can't be reversed. Use this whenever the user asks to "run it through Fusion", wants
-  a multi-model / panel / ensemble answer, wants a question cross-checked across models, or wants a
-  higher-confidence answer with consensus and blind spots surfaced — even if they don't say "fusion". Best
-  for high-stakes research, design calls, and debugging where being confidently wrong is expensive. For
-  long ITERATIVE work (not a one-shot question), use a persistent codex domain expert instead — see
+  Answer a hard question by fanning it out to a PANEL of models running in parallel — two independent
+  Claude Fable 5 runs + GPT-5.5 (codex), each answering independently with web search and bash, none seeing
+  the others' work — then having GPT-5.5 JUDGE the answers into a structured discernment (per-panelist
+  assessment, consensus, contradictions, partial coverage, unique insights, blind spots, verdict) and
+  Claude Fable 5 SYNTHESIZE the final answer grounded in it. If codex is unavailable, Fable both judges and
+  writes. Fable 5 always writes the final answer — the pipeline can't be reversed. ONLY invoke this skill
+  when the user EXPLICITLY asks for it: they say "fusion", use a /fusion command, or explicitly ask for a
+  multi-model / panel / ensemble / cross-model answer. Do NOT auto-trigger it for merely hard questions —
+  Fable 5 is the frontier model and a single direct Fable 5 answer is the default; Fusion is reserved for
+  when the user wants cross-model diversity or a challenge beyond what one Fable run should carry alone.
+  This skill must be DRIVEN BY a Claude Fable 5 session (see Step 0's model gate). For long ITERATIVE work
+  (not a one-shot question), use a persistent codex domain expert instead — see
   references/persistent_experts.md.
 ---
 
@@ -22,12 +23,12 @@ answering independently — with web search and bash, and with no knowledge of t
 splits the old single "judge" step into two stages, each given to the model that's better at it:
 
 ```
-            ┌─ Opus 4.8 panelist 1 ─┐
-prompt ─fan─┼─ Opus 4.8 panelist 2 ─┼─→ GPT-5.5 JUDGE ──→ Opus 4.8 SYNTHESIZE ─→ final answer
-       out  └─ GPT-5.5 panelist ────┘   (discernment:        (creative answer,
-                                         scores, consensus,    grounded in the
-                                         contradictions,       discernment)
-                                         verdict — no answer)
+            ┌─ Fable 5 panelist 1 ─┐
+prompt ─fan─┼─ Fable 5 panelist 2 ─┼─→ GPT-5.5 JUDGE ──→ Fable 5 SYNTHESIZE ─→ final answer
+       out  └─ GPT-5.5 panelist ───┘   (discernment:        (creative answer,
+                                        scores, consensus,    grounded in the
+                                        contradictions,       discernment)
+                                        verdict — no answer)
 ```
 
 The whole mechanism is **independence, then discernment, then synthesis**. The diversity that makes a panel
@@ -37,14 +38,27 @@ synthesizing them beats running it once. So there are no assigned "lenses" or pe
 the task verbatim and answers it straight. (See `references/panel.md`.)
 
 **Why the split:** GPT-5.5 is stronger at *discrimination* — deciding which claims are actually correct and
-well-supported — so it judges. Opus 4.8 is stronger at *creative synthesis* — writing the grounded final
+well-supported — so it judges. Fable 5 is stronger at *creative synthesis* — writing the grounded final
 answer — so it writes. The judge does not author the final answer.
 
-**One hard rule: Opus 4.8 always writes the final answer — the pipeline can't be reversed.** The panelist
-models can't call back out to spawn Opus, so Opus is always the driver and the synthesizer. The judge is an
-intermediate stage Opus invokes and stays in control of.
+**One hard rule: Fable 5 always writes the final answer — the pipeline can't be reversed.** The panelist
+models can't call back out to spawn Fable, so Fable is always the driver and the synthesizer. The judge is
+an intermediate stage Fable invokes and stays in control of.
 
-## Step 0 — Detect the pipeline
+## Step 0 — Gate, then detect the pipeline
+
+**Model gate — Fable 5 drives, or nobody does.** Check what model YOUR session is running (your system
+prompt names it). If you are **not** Claude Fable 5 (e.g. the session is on Opus or Sonnet), do NOT run the
+pipeline: tell the user this skill is pinned to a Fable 5 driver — the synthesizer IS the session model, so
+running it from a lesser session silently downgrades the "Fable-tier" result — and ask them to switch the
+session to Fable 5 (`/model fable`) and re-invoke. Only proceed from a non-Fable session if the user
+explicitly says to anyway.
+
+**Worth a panel at all?** Even from a Fable 5 session, Fusion is not the default answer path. If the user
+didn't explicitly invoke it, answer directly instead. If they did, but the question is quick or low-stakes,
+say a single Fable 5 answer would serve them just as well for ~1/4 the cost — then respect their call.
+
+Then detect:
 
 ```bash
 bash <skill_dir>/scripts/detect_panel.sh
@@ -52,9 +66,9 @@ bash <skill_dir>/scripts/detect_panel.sh
 
 It prints a machine-parseable block — grep these:
 
-- `PANEL=` the panelists that will answer blind (default `opus4.8,opus4.8,gpt5.5`).
-- `JUDGE=` the discernment model (`gpt5.5` when codex is present, else `opus4.8`).
-- `SYNTH=` the synthesizer — always `opus4.8`.
+- `PANEL=` the panelists that will answer blind (default `fable5,fable5,gpt5.5`).
+- `JUDGE=` the discernment model (`gpt5.5` when codex is present, else `fable5`).
+- `SYNTH=` the synthesizer — always `fable5`.
 - `SLUG=` the human-readable label for what you ran.
 - `RUN_DIR=` a **fresh private directory for this run**. Use it for *every* intermediate file below
   (`$RUN_DIR/...`). Never use a shared `/tmp/fusion_*` constant — that clobbers concurrent runs in other
@@ -62,9 +76,9 @@ It prints a machine-parseable block — grep these:
 
 | Condition | Panel | Judge | Synth |
 | --- | --- | --- | --- |
-| codex present (default) | 2× Opus 4.8 + GPT-5.5 | GPT-5.5 | Opus 4.8 |
-| codex absent | 2× Opus 4.8 | Opus 4.8 | Opus 4.8 |
-| `FUSION_USE_GEMINI=1` + gemini present | + Gemini 3.1 Pro as an extra panelist | (unchanged) | Opus 4.8 |
+| codex present (default) | 2× Fable 5 + GPT-5.5 | GPT-5.5 | Fable 5 |
+| codex absent | 2× Fable 5 | Fable 5 | Fable 5 |
+| `FUSION_USE_GEMINI=1` + gemini present | + Gemini 3.1 Pro as an extra panelist | (unchanged) | Fable 5 |
 
 If the user named a panel or judge, honor it — but if a required CLI is missing, say so and fall back
 rather than failing. Otherwise use the detector's recommendation.
@@ -81,18 +95,21 @@ independent experts who won't see the others' work. Do not assign lenses; do not
 
 Launch **all panelists in a single turn** so they run concurrently:
 
-- **Opus 4.8 panelists (default)** → headless `claude` CLI subprocesses under the **Claude Fable 5 system
-  prompt**, with permissions skipped so each researches autonomously (web + bash). Write each panelist's
-  prompt to a temp file and run **two** of them in the background with the *same* prompt — two cold runs:
+- **Fable 5 panelists (default)** → headless `claude` CLI subprocesses running the real
+  `claude-fable-5` model, with permissions skipped so each researches autonomously (web + bash). Write each
+  panelist's prompt to a temp file and run **two** of them in the background with the *same* prompt — two
+  cold runs:
   ```bash
-  bash <skill_dir>/scripts/run_claude.sh "$RUN_DIR/claude1_prompt.txt" "$RUN_DIR/claude1_out.md" opus
-  bash <skill_dir>/scripts/run_claude.sh "$RUN_DIR/claude2_prompt.txt" "$RUN_DIR/claude2_out.md" opus
+  bash <skill_dir>/scripts/run_claude.sh "$RUN_DIR/claude1_prompt.txt" "$RUN_DIR/claude1_out.md"
+  bash <skill_dir>/scripts/run_claude.sh "$RUN_DIR/claude2_prompt.txt" "$RUN_DIR/claude2_out.md"
   ```
-  This runs Opus 4.8 but loads the Fable 5 system prompt (the "Fable-tier" intent). It uses
-  `--dangerously-skip-permissions` so the panelist uses tools without prompts — deliberate for an isolated
-  panelist, contained to a scratch dir. Each run is wall-clock bounded by `FUSION_TIMEOUT` (default 900s).
+  It uses `--dangerously-skip-permissions` so the panelist uses tools without prompts — deliberate for an
+  isolated panelist, contained to a scratch dir. Each run is wall-clock bounded by `FUSION_TIMEOUT`
+  (default 900s). Override the model with `FUSION_CLAUDE_MODEL` (legacy: `FUSION_CLAUDE_MODEL=opus` +
+  `FUSION_FABLE5_PROMPT=<skill_dir>/CLAUDE-FABLE-5.md` reproduces the old Opus-with-Fable-persona run for
+  accounts without Fable access).
   *(Alternative: if you don't want headless CLI subprocesses, spawn two `Agent` subagents
-  `subagent_type: general-purpose` with the same prompt instead — same effect, no Fable 5 prompt.)*
+  `subagent_type: general-purpose` with `model: fable` and the same prompt instead — same effect.)*
 - **GPT-5.5 panelist** → write its prompt to a temp file and run in the background:
   ```bash
   bash <skill_dir>/scripts/run_codex.sh "$RUN_DIR/codex_prompt.txt" "$RUN_DIR/codex_out.md" medium
@@ -131,15 +148,15 @@ run & merge; Track B: research → five-section synthesis) and produces a struct
 
 **Fallback (codex unavailable, capped, timed out, or off-task):** `run_judge.sh` exits non-zero (2 = no
 codex, 1 = codex failed / timed out / returned output missing the required sections — e.g. a contaminated,
-off-task judge). When it does, **you (Opus) do the discernment yourself** using `references/judge_rubric.md`
-— read all answers and produce the same structured analysis. Note in the final output that the judge fell
-back to Opus.
+off-task judge). When it does, **you (Fable) do the discernment yourself** using
+`references/judge_rubric.md` — read all answers and produce the same structured analysis. Note in the final
+output that the judge fell back to Fable.
 
-## Step 4 — Synthesize (Opus writes the final answer)
+## Step 4 — Synthesize (Fable writes the final answer)
 
-You (Opus) read the judge's discernment doc plus the raw answers and write the final deliverable grounded
-in it. De-anonymize here using `$RUN_DIR/answers/map.json`: restore real panelist attribution (A/B/C → the
-actual source files/models) so the user can trace each decision.
+You (Fable 5) read the judge's discernment doc plus the raw answers and write the final deliverable
+grounded in it. De-anonymize here using `$RUN_DIR/answers/map.json`: restore real panelist attribution
+(A/B/C → the actual source files/models) so the user can trace each decision.
 
 - **Track A (code/artifact):** emit the complete, merged artifact — every file, ready to run as-is. Per
   `judge_rubric.md` you got here by running both candidates and keeping what worked; **run the merged
@@ -154,7 +171,7 @@ Lead with the **final deliverable** — the merged working artifact (Track A) or
 (Track B) — then the audit trail beneath it: the judge's discernment (per-panelist assessment, consensus,
 contradictions, partial coverage, unique insights, blind spots, verdict), with real attribution restored.
 Name what you ran: the `SLUG`, which panelists participated, who judged, and who synthesized. If the judge
-fell back to Opus (codex missing/capped) or a panelist was dropped, say so and how to enable the fuller
+fell back to Fable (codex missing/capped) or a panelist was dropped, say so and how to enable the fuller
 pipeline.
 
 ## Step 6 — (optional) Anchor the run's provenance
@@ -185,6 +202,7 @@ audit trail you presented: the `anchorId`, `manifest sha256`, and verification U
 
 A panel costs roughly N× a single answer in tokens, and the new judge stage adds one serial codex call
 after the parallel fan-out. That's the deliberate trade: you spend more — and split judging from writing —
-to stop being confidently wrong where that's expensive. For quick or low-stakes questions, a single direct
-answer is the right call. For long iterative work, a persistent codex expert
+to stop being confidently wrong where that's expensive. Now that Fable 5 itself is the frontier model, a
+single direct Fable answer is the right call for most questions; reserve the panel for when the user wants
+cross-model diversity or the stakes justify N× scrutiny. For long iterative work, a persistent codex expert
 (`references/persistent_experts.md`) beats both.

@@ -62,9 +62,10 @@ three files.
 ## Using Fusion inside the loop
 
 Items flagged `design:"fusion"` are designed by calling the Fusion skill first (synthesis cached to
-`improve/designs/<id>.md`); trivial items are implemented directly to conserve the Fusion budget. Until the
-codex-hermeticity item lands, the loop should use the pure-Opus pipeline (`/fusion-opus4.8`) for design
-runs, since the codex stages can be contaminated by other local projects (Finding #0).
+`improve/designs/<id>.md`); trivial items are implemented directly to conserve the Fusion budget. The loop
+uses `/fusion` (auto-detect) for design runs, falling back to the pure-Fable pipeline (`/fusion-fable5`)
+when codex is unavailable or capped. (The codex-hermeticity item, Finding #0, has landed — codex stages run
+with a hermetic `CODEX_HOME`, so cross-project contamination is no longer a concern.)
 
 > Safety summary: the single most important property is that state transitions are script-owned with atomic
 > writes and a clean-tree + green-baseline precondition. A confidently-wrong iteration costs one attempt and

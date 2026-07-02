@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# run_claude.sh — run one Opus 4.8 panelist via the `claude` CLI, under the Claude Fable 5 system prompt.
+# run_claude.sh — run one Claude Fable 5 panelist via the `claude` CLI.
 #
-# This is the DEFAULT way Fusion runs its Opus panelists in this fork: a headless `claude` subprocess that
-# answers the task autonomously with web + bash. It runs Opus 4.8 (the accessible model) but loads the
-# Claude Fable 5 system prompt, so the panelist presents as Fable 5 — the "Fable-tier" intent of the panel.
+# This is the DEFAULT way Fusion runs its Claude panelists: a headless `claude` subprocess that answers
+# the task autonomously with web + bash. Now that Fable 5 is generally available, the panelist runs the
+# REAL model (`claude-fable-5`) with its native system prompt — no persona injection needed.
 #
 # Usage:
 #   run_claude.sh <prompt_file> <output_file> [model]
 #
 # - <prompt_file>  : the FULL panelist prompt (verbatim user task + the short independent-expert instruction).
 # - <output_file>  : where the panelist's final answer is written (clean text, just the answer).
-# - model          : the claude model alias/name (default: opus, overridable via FUSION_CLAUDE_MODEL).
+# - model          : the claude model alias/name (default: claude-fable-5, overridable via FUSION_CLAUDE_MODEL).
 #
 # Flags (matches the project convention; see README):
 #   --print                       headless, non-interactive — print the answer and exit.
@@ -18,32 +18,36 @@
 #                                 can research autonomously like the codex panelist. This bypasses ALL
 #                                 permission checks — that's deliberate for an isolated panelist run, but it
 #                                 IS dangerous; we run in a throwaway scratch dir to contain file writes.
-#   --model opus                  pin to Opus 4.8; the CLI's own default may be a model the account can't use.
-#   --system-prompt-file ...      load the Claude Fable 5 system prompt (resolved below).
+#   --model claude-fable-5        pin to Fable 5; the CLI's own default may be a different model.
 #
-# The Fable 5 prompt file is resolved from FUSION_FABLE5_PROMPT, else the copy shipped with the skill
-# (<skill_dir>/CLAUDE-FABLE-5.md).
+# Legacy fallback: if your account has NO Fable 5 access, set FUSION_CLAUDE_MODEL=opus and
+# FUSION_FABLE5_PROMPT to a Fable 5 system-prompt file — that reproduces the pre-Fable behavior (Opus 4.8
+# wearing the Fable 5 persona). The persona prompt is ONLY loaded when FUSION_FABLE5_PROMPT is explicitly
+# set; by default the real model's own system prompt is used.
 
 set -uo pipefail
 
 prompt_file="${1:?usage: run_claude.sh <prompt_file> <output_file> [model]}"
 output_file="${2:?usage: run_claude.sh <prompt_file> <output_file> [model]}"
-model="${3:-${FUSION_CLAUDE_MODEL:-opus}}"
+model="${3:-${FUSION_CLAUDE_MODEL:-claude-fable-5}}"
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 . "$HERE/_lib.sh"
-SKILL_DIR="$(dirname "$HERE")"
-fable5="${FUSION_FABLE5_PROMPT:-$SKILL_DIR/CLAUDE-FABLE-5.md}"
 
 if ! command -v claude >/dev/null 2>&1; then
   echo "[run_claude.sh] claude CLI not found on PATH." >&2
   exit 127
 fi
-if [ ! -s "$fable5" ]; then
-  echo "[run_claude.sh] Fable 5 system prompt not found at: $fable5" >&2
-  echo "                set FUSION_FABLE5_PROMPT to its path, or reinstall the skill." >&2
-  exit 1
+
+# Optional legacy persona injection — only when explicitly requested via FUSION_FABLE5_PROMPT.
+extra_args=()
+if [ -n "${FUSION_FABLE5_PROMPT:-}" ]; then
+  if [ ! -s "$FUSION_FABLE5_PROMPT" ]; then
+    echo "[run_claude.sh] FUSION_FABLE5_PROMPT is set but not readable: $FUSION_FABLE5_PROMPT" >&2
+    exit 1
+  fi
+  extra_args+=(--system-prompt-file "$FUSION_FABLE5_PROMPT")
 fi
 
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/fusion-claude.XXXXXX")"
@@ -55,7 +59,7 @@ trap 'rm -rf "$scratch"' EXIT
     --print \
     --dangerously-skip-permissions \
     --model "$model" \
-    --system-prompt-file "$fable5" \
+    ${extra_args[@]+"${extra_args[@]}"} \
     "$(cat "$prompt_file")" ) > "$output_file" 2> "$scratch/err.log"
 
 status=$?
@@ -68,4 +72,4 @@ if [ $status -ne 0 ] || [ ! -s "$output_file" ]; then
   tail -20 "$scratch/err.log" >&2
   exit 1
 fi
-echo "[run_claude.sh] ok -> $output_file (model=$model, system-prompt=Claude Fable 5)"
+echo "[run_claude.sh] ok -> $output_file (model=$model)"

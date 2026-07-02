@@ -17,8 +17,8 @@ Each iteration, in order:
    grep `NEXTID RISK TRIVIAL DESIGN ACTION FILES ACCEPTANCE BUDGET`.
 2. If `ACTION=gate`: write the concrete plan into `improve/proposals/<NEXTID>.md`, run
    `bash improve/run_iteration.sh gate <NEXTID>`, and go to step 1. Never edit code for a gated item.
-3. If `DESIGN=needed`: design the fix with Fusion — invoke the `fusion` skill (prefer `/fusion-opus4.8`
-   while codex hermeticity item `F0-codex-hermetic` is unresolved, since codex stages can be contaminated)
+3. If `DESIGN=needed`: design the fix with Fusion — invoke the `fusion` skill (use `/fusion` auto-detect;
+   `/fusion-fable5` if codex is unavailable or capped)
    on the item's title + the relevant slice of `docs/fusion-self-review.md` + the current `FILES`. Save the
    synthesis to `improve/designs/<NEXTID>.md`, then run `bash improve/run_iteration.sh fused <NEXTID>`. Act
    on the SYNTHESIS, not any single panelist. If `DESIGN=skip`, implement directly.

@@ -1,16 +1,16 @@
 # Judge rubric — discernment, then synthesis
 
-This fork splits the old single Opus "judge + write" pass into two stages, each given to the model that's
+This fork splits the old single "judge + write" pass into two stages, each given to the model that's
 better at it:
 
 1. **Discernment (the judge) — GPT-5.5 via `scripts/run_judge.sh`.** Reads every panelist answer *after*
    all returned independently and produces a structured analysis: who's right, where they conflict, what's
    load-bearing vs weak. It does **not** write the final answer.
-2. **Synthesis (the writer) — Opus 4.8, the orchestrator (you).** Reads the judge's discernment doc plus
-   the raw answers and writes the final answer grounded in it. Opus always writes the final answer — the
+2. **Synthesis (the writer) — Fable 5, the orchestrator (you).** Reads the judge's discernment doc plus
+   the raw answers and writes the final answer grounded in it. Fable 5 always writes the final answer — the
    invariant holds.
 
-If codex is unavailable (not installed, or capped — `run_judge.sh` exits non-zero), **you (Opus) do the
+If codex is unavailable (not installed, or capped — `run_judge.sh` exits non-zero), **you (Fable) do the
 discernment yourself** using this same rubric, then synthesize. A missing judge degrades the run; it never
 breaks it.
 
@@ -36,7 +36,7 @@ what to keep by **actually running the candidates** — don't merge from reading
 
 The discernment stage is a strong fit for a codex judge here: `run_judge.sh` gives codex a writable sandbox
 with the candidates copied in, so it can build and run each one and report observed behavior. Whoever does
-discernment (codex judge, or Opus on fallback) should:
+discernment (codex judge, or Fable on fallback) should:
 
 1. **Understand each candidate.** Architecture/approach, what it gets right, where it's buggy, incomplete,
    or fragile; the concrete differences (APIs, data structures, algorithms, file layouts, edge cases).
@@ -47,7 +47,7 @@ discernment (codex judge, or Opus on fallback) should:
    average two answers or keep both "to be safe." Two candidates that ran correctly the same way is the
    strongest signal.
 
-Then the synthesizer (Opus):
+Then the synthesizer (Fable):
 
 4. **Pick a foundation, then graft the parts that worked — don't blend.** Strongest implementation as the
    base; pull in the *specific* pieces from the other that were observed to work. One coherent design,
@@ -97,7 +97,7 @@ add one the panel didn't name.
 The handoff to synthesis: which specific claims are load-bearing AND well-supported (keep), which are
 weak/contradicted (discard or hedge), and the recommended spine for the final answer.
 
-### Final answer (written by Opus, the synthesizer)
+### Final answer (written by Fable 5, the synthesizer)
 Grounded in the above: lead with high-confidence consensus, fold in the unique insights, flag what stays
 uncertain. It must follow *from* the discernment, not be one panelist's answer lightly edited. Restore real
 panelist attribution here (de-anonymize A/B/C back to the models) so the user can trace each decision.

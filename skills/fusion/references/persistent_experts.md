@@ -16,7 +16,7 @@ these persistent sessions.
   and independent cross-checking is the point. One shot.
 - **Persistent codex expert** — a long iterative thread on one domain where continuity pays off: the expert
   should remember the last 20 turns. Use when you'll ask the same expert many related follow-ups.
-- **Ephemeral Opus subagent (Agent tool)** — a self-contained sub-task you only need answered once, where
+- **Ephemeral Fable subagent (Agent tool)** — a self-contained sub-task you only need answered once, where
   prior context doesn't matter. Still the right default for parallel one-off fan-out.
 
 A natural combination: run the panel once to decide the approach, then spin up a persistent codex expert to

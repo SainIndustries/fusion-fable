@@ -60,7 +60,7 @@ manifest="$(jq -cn \
   --arg started "${FUSION_RUN_STARTED:-$(ts)}" --arg finished "$(ts)" \
   --arg task "$(hashfile "$RUN_DIR/task.txt")" \
   --arg judge_model "${JUDGE:-unknown}"  --arg judge_h "$(hashfile "$RUN_DIR/judge.md")" \
-  --arg synth_model "${SYNTH:-opus4.8}"  --arg synth_h "$(hashfile "$RUN_DIR/synthesis.md")" \
+  --arg synth_model "${SYNTH:-fable5}"  --arg synth_h "$(hashfile "$RUN_DIR/synthesis.md")" \
   --arg cver "$(ver claude)" --arg xver "$(ver codex)" \
   --argjson panel "$panel_json" \
   '{schema:"fusion.attestation/v1", run_id:$run_id, slug:$slug, hash_algo:$algo,

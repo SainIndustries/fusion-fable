@@ -7,11 +7,11 @@
 #   anonymize.sh <out_answers_dir> <src1> [<src2> ...]
 #
 # - <out_answers_dir> : directory to (re)create with panelist_A.md, panelist_B.md, ... in randomized order.
-# - <srcN>            : source answer files, in their natural order (e.g. opus1, opus2, codex).
+# - <srcN>            : source answer files, in their natural order (e.g. claude1, claude2, codex).
 #
 # Writes:
 #   <out_answers_dir>/panelist_<LABEL>.md   one per non-empty source, shuffled
-#   <out_answers_dir>/map.json              [{"label":"A","source":"/path/opus1_out.md"}, ...]
+#   <out_answers_dir>/map.json              [{"label":"A","source":"/path/claude1_out.md"}, ...]
 #
 # The map is how you de-anonymize for attribution at synthesis — durable on disk, not in the model's head.
 # Empty/missing sources are skipped (a dropped panelist is absent, never silent agreement).

@@ -2,12 +2,12 @@
 # run_judge.sh — the DISCERNMENT stage. Runs GPT-5.5 (via codex) as the judge over the panel's answers.
 #
 # This is the new middle stage of the Sain Industries Fusion pipeline:
-#     fan out (blind panelists) → [ run_judge.sh: GPT-5.5 discernment ] → Opus synthesizes
+#     fan out (blind panelists) → [ run_judge.sh: GPT-5.5 discernment ] → Fable 5 synthesizes
 #
-# The judge does NOT write the final answer. It produces a structured discernment doc that the Opus
+# The judge does NOT write the final answer. It produces a structured discernment doc that the Fable 5
 # synthesizer consumes: per-panelist assessment, consensus, adjudicated contradictions, partial coverage,
 # unique insights, blind spots, and a verdict on what's load-bearing vs weak. GPT-5.5 is used here because
-# it's stronger at discrimination; Opus stays the creative synthesizer downstream.
+# it's stronger at discrimination; Fable 5 stays the creative synthesizer downstream.
 #
 # Usage:
 #   run_judge.sh <task_file> <answers_dir> <output_file> [reasoning_effort]
@@ -22,10 +22,10 @@
 #
 # Exit codes:
 #   0   discernment written to <output_file>
-#   2   codex CLI not installed        -> caller falls back to an Opus judge
-#   1   codex ran but failed/empty     -> caller falls back to an Opus judge
+#   2   codex CLI not installed        -> caller falls back to a Fable judge
+#   1   codex ran but failed/empty     -> caller falls back to a Fable judge
 #
-# The caller (SKILL.md) treats any non-zero exit as "judge unavailable" and has Opus do the discernment
+# The caller (SKILL.md) treats any non-zero exit as "judge unavailable" and has Fable do the discernment
 # itself before synthesizing — so a capped or missing codex degrades the run instead of breaking it.
 
 set -uo pipefail
@@ -41,7 +41,7 @@ effort="${4:-high}"
 judge_model="${JUDGE_MODEL:-gpt-5.5}"   # override to A/B the judge (e.g. JUDGE_MODEL=gpt-5.5-codex)
 
 if ! command -v codex >/dev/null 2>&1; then
-  echo "[run_judge.sh] codex CLI not installed — caller should fall back to an Opus judge." >&2
+  echo "[run_judge.sh] codex CLI not installed — caller should fall back to a Fable judge." >&2
   exit 2
 fi
 
@@ -134,7 +134,7 @@ fusion_run_timeout "$(fusion_default_timeout)" codex exec \
 
 status=$?
 if [ $status -eq 124 ]; then
-  echo "[run_judge.sh] codex judge timed out after $(fusion_default_timeout)s — caller should fall back to Opus." >&2
+  echo "[run_judge.sh] codex judge timed out after $(fusion_default_timeout)s — caller should fall back to Fable." >&2
   exit 1
 fi
 if [ $status -ne 0 ] || [ ! -s "$output_file" ]; then
@@ -144,14 +144,14 @@ if [ $status -ne 0 ] || [ ! -s "$output_file" ]; then
 fi
 
 # Validate the discernment actually has the required structure. A codex judge can return non-empty but
-# off-task output (e.g. contaminated by local project context) — that must trigger the Opus fallback, not
+# off-task output (e.g. contaminated by local project context) — that must trigger the Fable fallback, not
 # be synthesized over. Require the load-bearing section headers.
 missing=""
 for h in "Per-panelist assessment" "Consensus" "Contradictions" "Discernment verdict"; do
   grep -qiF "$h" "$output_file" || missing="$missing \"$h\""
 done
 if [ -n "$missing" ]; then
-  echo "[run_judge.sh] judge output missing required sections:${missing} — treating as failed; caller should fall back to Opus." >&2
+  echo "[run_judge.sh] judge output missing required sections:${missing} — treating as failed; caller should fall back to Fable." >&2
   exit 1
 fi
 echo "[run_judge.sh] ok -> $output_file (judge=$judge_model, effort=$effort, panelists=${#answers[@]})"
