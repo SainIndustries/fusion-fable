@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# run_claude.sh — run one Claude Fable 5 panelist via the `claude` CLI.
+# run_claude.sh — run one Claude panelist via the `claude` CLI (Fable 5 by default; pass `opus` as the
+# model arg for the Opus 4.8 panelist).
 #
 # This is the DEFAULT way Fusion runs its Claude panelists: a headless `claude` subprocess that answers
 # the task autonomously with web + bash. Now that Fable 5 is generally available, the panelist runs the

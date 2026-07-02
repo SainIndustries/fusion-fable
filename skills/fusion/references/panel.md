@@ -12,12 +12,10 @@ Do not assign panelists "roles" or "stances" (skeptic, optimizer, first-principl
 *how* each one reasons artificially and corrupts the very independence that makes the panel work. Pass
 every panelist the user's task **verbatim** and let each answer it straight.
 
-The diversity is already there for free. Running the same prompt independently produces different reasoning
-paths, different tool calls, and different source selections — even when it's the *same model answering
-twice*. (Two independent same-model runs synthesized beat a single run by a wide margin precisely because
-of this.) You don't manufacture diversity; you harvest it from independence. That's also why the default
-panel is two Fable 5 runs plus GPT-5.5 rather than reaching for a third model family: same-model reruns
-already add real diversity, with no extra CLI or auth to babysit.
+The diversity is real and free: the default panel is deliberately **cross-model** — one Claude Fable 5, one
+Claude Opus 4.8, one GPT-5.5 — three different models and two different families, so the same prompt takes
+three genuinely different reasoning paths, tool calls, and source selections. You don't manufacture
+diversity with personas; you harvest it from model variety plus independence.
 
 ## Independence is the rule
 
@@ -27,40 +25,42 @@ answers meet. Cross-pollination before the judge defeats the entire mechanism.
 
 ## Three roles: panelist, judge, synthesizer
 
-This fork separates the two halves of the old single-judge step, giving each to the model that's better at
-it:
+This fork separates the two halves of the old single-judge step:
 
 - **Panelists** answer the task blind and in parallel.
-- **Judge (discernment)** — **GPT-5.5 via codex**, stronger at discrimination. It scores the answers,
-  finds consensus and adjudicates contradictions, and decides what's load-bearing vs weak. It does **not**
-  write the final answer. If codex is unavailable, Fable does the discernment instead.
-- **Synthesizer (final answer)** — **always Claude Fable 5**, the orchestrator, better at creative
-  synthesis. It writes the final answer grounded in the judge's discernment.
+- **Judge (discernment)** — **a fresh, blind Claude Fable 5 subprocess** by default
+  (`scripts/run_judge.sh`). It reads only the anonymized answers — a cold context that never watched the
+  fan-out — scores them, finds consensus and adjudicates contradictions, and decides what's load-bearing vs
+  weak. It does **not** write the final answer. Set `FUSION_JUDGE=gpt5.5` (or use `/fusion-gpt5.5`) to hand
+  discernment to GPT-5.5 via codex instead — cross-model judging. If the judge subprocess fails, the
+  orchestrating session does the discernment inline.
+- **Synthesizer (final answer)** — **always Claude Fable 5**, the orchestrator. It writes the final answer
+  grounded in the judge's discernment.
 
 Fable always drives and writes the final answer — the pipeline can't be reversed, since the panelist models
 can't call back out to spawn Fable.
 
-## How the Fable panelists run
+## How the Claude panelists run
 
-By default the two Fable 5 panelists run as headless `claude` CLI subprocesses (`scripts/run_claude.sh`)
-pinned to the real `claude-fable-5` model, with `--dangerously-skip-permissions` so each researches
-autonomously with web + bash — the same autonomy the codex panelist has. Each runs in a throwaway scratch
-dir so its file writes never touch your repo. (Spawning two `Agent` subagents with `model: fable` instead
-is a supported alternative — same independence, in-process.) Accounts without Fable 5 access can fall back
-to the legacy behavior — Opus 4.8 loaded with the Fable 5 persona prompt — via `FUSION_CLAUDE_MODEL=opus`
-plus `FUSION_FABLE5_PROMPT`.
+The Fable 5 and Opus 4.8 panelists run as headless `claude` CLI subprocesses (`scripts/run_claude.sh`)
+pinned to the real models (`claude-fable-5` and `opus`), with `--dangerously-skip-permissions` so each
+researches autonomously with web + bash — the same autonomy the codex panelist has. Each runs in a
+throwaway scratch dir so its file writes never touch your repo. (Spawning `Agent` subagents with
+`model: fable` / `model: opus` instead is a supported alternative — same independence, in-process.)
+Override the models with `FUSION_CLAUDE_MODEL` (Fable) and `FUSION_OPUS_MODEL` (Opus).
 
 ## Default panel composition
 
-- Panelists: **two independent Fable 5 runs** (claude CLI, `claude-fable-5`) **+ GPT-5.5** (codex), all
-  answering in parallel and blind. If codex is absent, the panel is the two Fable runs alone.
+- Panelists: **one Fable 5 + one Opus 4.8** (claude CLI) **+ one GPT-5.5** (codex), all answering in
+  parallel and blind. If codex is absent, the panel is the two Claude panelists alone.
 - Gemini is **off by default** — set `FUSION_USE_GEMINI=1` to add it as an optional extra panelist when its
   CLI is present and authenticated.
-- Judge: **GPT-5.5** (or Fable on fallback). Synthesizer: **Fable 5**.
+- Judge: **Fable 5, fresh blind subprocess** (GPT-5.5 via `FUSION_JUDGE=gpt5.5`). Synthesizer: **Fable 5**.
 
 ## Anonymize before judging
 
-Because GPT-5.5 is both a panelist and the judge, the judge could otherwise favor its own answer
+The judge shares a model family with at least one panelist — a Fable judge with the Fable panelist, a
+GPT-5.5 judge with the codex panelist — so an un-blinded judge could favor its own model's answer
 (self-preference bias). Neutralize it: write the panelist answers out under **shuffled** labels — Panelist
 A, B, C — and hand the judge only those. The judge never learns which model wrote which. Keep the
 label→model map yourself and restore real attribution only when you (Fable) write the final answer.

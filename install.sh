@@ -26,23 +26,25 @@ echo "    commands : /fusion  /fusion-gpt5.5  /fusion-fable5  /codex-expert"
 echo
 
 # Report what the pipeline can do on this machine.
-# Pipeline: fan out (blind panelists) → JUDGE (discernment) → Fable 5 SYNTHESIZE.
+# Pipeline: fan out (blind cross-model panelists) → Fable 5 JUDGE (fresh blind subprocess) → Fable 5 SYNTHESIZE.
 have() { command -v "$1" >/dev/null 2>&1; }
 claude_model="${FUSION_CLAUDE_MODEL:-claude-fable-5}"
+opus_model="${FUSION_OPUS_MODEL:-opus}"
 echo "Pipeline availability here (fan out → judge → synthesize):"
 if have claude; then
-  echo "  panelists: Claude Fable 5 via the claude CLI"
-  echo "             (claude --print --dangerously-skip-permissions --model $claude_model)"
+  echo "  panelists: Claude Fable 5 + Claude Opus 4.8 via the claude CLI; Fable 5 also judges (blind subprocess)"
+  echo "             (claude --print --dangerously-skip-permissions --model $claude_model | $opus_model)"
 else
-  echo "  panelists: WARNING — 'claude' CLI not on PATH; Fable panelists fall back to Agent subagents"
+  echo "  panelists: WARNING — 'claude' CLI not on PATH; Claude panelists fall back to Agent subagents"
 fi
 if have codex; then
-  echo "  flagship : ready — 2× Fable 5 + GPT-5.5 panel, GPT-5.5 judges, Fable 5 synthesizes"
+  echo "  flagship : ready — Fable 5 + Opus 4.8 + GPT-5.5 panel, Fable 5 judges + synthesizes"
+  echo "             (GPT-5.5 judging available via FUSION_JUDGE=gpt5.5 or /fusion-gpt5.5)"
   echo "             (codex found: $(codex --version 2>/dev/null | head -1))"
   echo "  experts  : ready — persistent codex domain experts via /codex-expert (codex exec resume)"
 else
-  echo "  flagship : needs the 'codex' CLI for the GPT-5.5 judge + panelist (install + log in)"
-  echo "  fallback : ready — 2× Fable 5 runs, Fable judges + synthesizes (no external CLI)"
+  echo "  flagship : needs the 'codex' CLI for the GPT-5.5 panelist (install + log in)"
+  echo "  fallback : ready — Fable 5 + Opus 4.8 panel, Fable judges + synthesizes (claude CLI only)"
   echo "  experts  : needs the 'codex' CLI for persistent domain experts"
 fi
 if have gemini; then

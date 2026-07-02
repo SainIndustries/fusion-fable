@@ -1,32 +1,39 @@
 #!/usr/bin/env bash
-# run_judge.sh — the DISCERNMENT stage. Runs GPT-5.5 (via codex) as the judge over the panel's answers.
+# run_judge.sh — the DISCERNMENT stage. Runs the judge over the panel's anonymized answers.
 #
-# This is the new middle stage of the Sain Industries Fusion pipeline:
-#     fan out (blind panelists) → [ run_judge.sh: GPT-5.5 discernment ] → Fable 5 synthesizes
+# This is the middle stage of the Sain Industries Fusion pipeline:
+#     fan out (blind panelists) → [ run_judge.sh: discernment ] → Fable 5 synthesizes
+#
+# Default judge: **Claude Fable 5**, run as a FRESH headless `claude` subprocess. Running the judge cold —
+# instead of having the orchestrator judge inline — keeps discernment blind: the subprocess sees only the
+# anonymized answers, not the orchestrator's memory of which panelist ran where. Optional: GPT-5.5 (codex)
+# as the judge, via the [judge] arg or FUSION_JUDGE=gpt5.5.
 #
 # The judge does NOT write the final answer. It produces a structured discernment doc that the Fable 5
 # synthesizer consumes: per-panelist assessment, consensus, adjudicated contradictions, partial coverage,
-# unique insights, blind spots, and a verdict on what's load-bearing vs weak. GPT-5.5 is used here because
-# it's stronger at discrimination; Fable 5 stays the creative synthesizer downstream.
+# unique insights, blind spots, and a verdict on what's load-bearing vs weak.
 #
 # Usage:
-#   run_judge.sh <task_file> <answers_dir> <output_file> [reasoning_effort]
+#   run_judge.sh <task_file> <answers_dir> <output_file> [reasoning_effort] [judge]
 #
 # - <task_file>    : the original user task, verbatim.
 # - <answers_dir>  : a directory of anonymized panelist answers named panelist_A.md, panelist_B.md, ...
 #                    ANONYMITY IS THE CALLER'S JOB: write the answers under shuffled A/B/C labels and keep
-#                    the label→model map yourself. The judge must not be able to tell which answer is the
-#                    codex (GPT-5.5) panelist's own — that's how we neutralize self-preference bias.
+#                    the label→model map yourself. The judge must not be able to tell which answer came
+#                    from its own model family — a Fable judge could otherwise favor the Fable panelist,
+#                    and a GPT-5.5 judge the codex panelist. That's how we neutralize self-preference bias.
 # - <output_file>  : where the discernment doc is written (the judge's final message only).
-# - reasoning_effort : low | medium | high   (default: high — discernment is the whole point here).
+# - reasoning_effort : low | medium | high (default: high). Applies to the codex judge; the claude judge
+#                    reasons at its own default and ignores it.
+# - judge          : fable5 (default) | gpt5.5. Also settable via FUSION_JUDGE.
 #
 # Exit codes:
 #   0   discernment written to <output_file>
-#   2   codex CLI not installed        -> caller falls back to a Fable judge
-#   1   codex ran but failed/empty     -> caller falls back to a Fable judge
+#   2   judge CLI not installed             -> caller (the orchestrator) does the discernment inline
+#   1   judge ran but failed/empty/off-task -> same inline fallback
 #
-# The caller (SKILL.md) treats any non-zero exit as "judge unavailable" and has Fable do the discernment
-# itself before synthesizing — so a capped or missing codex degrades the run instead of breaking it.
+# The caller (SKILL.md) treats any non-zero exit as "judge unavailable" and has the orchestrating Fable
+# session do the discernment itself before synthesizing — a failed judge degrades the run, never breaks it.
 
 set -uo pipefail
 
@@ -34,16 +41,30 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 . "$HERE/_lib.sh"
 
-task_file="${1:?usage: run_judge.sh <task_file> <answers_dir> <output_file> [reasoning_effort]}"
-answers_dir="${2:?usage: run_judge.sh <task_file> <answers_dir> <output_file> [reasoning_effort]}"
-output_file="${3:?usage: run_judge.sh <task_file> <answers_dir> <output_file> [reasoning_effort]}"
+task_file="${1:?usage: run_judge.sh <task_file> <answers_dir> <output_file> [reasoning_effort] [judge]}"
+answers_dir="${2:?usage: run_judge.sh <task_file> <answers_dir> <output_file> [reasoning_effort] [judge]}"
+output_file="${3:?usage: run_judge.sh <task_file> <answers_dir> <output_file> [reasoning_effort] [judge]}"
 effort="${4:-high}"
-judge_model="${JUDGE_MODEL:-gpt-5.5}"   # override to A/B the judge (e.g. JUDGE_MODEL=gpt-5.5-codex)
+judge="${5:-${FUSION_JUDGE:-fable5}}"
 
-if ! command -v codex >/dev/null 2>&1; then
-  echo "[run_judge.sh] codex CLI not installed — caller should fall back to a Fable judge." >&2
-  exit 2
-fi
+case "$judge" in
+  fable5)
+    if ! command -v claude >/dev/null 2>&1; then
+      echo "[run_judge.sh] claude CLI not installed — caller should do the discernment inline." >&2
+      exit 2
+    fi
+    ;;
+  gpt5.5)
+    if ! command -v codex >/dev/null 2>&1; then
+      echo "[run_judge.sh] codex CLI not installed — caller should do the discernment inline (or use judge=fable5)." >&2
+      exit 2
+    fi
+    ;;
+  *)
+    echo "[run_judge.sh] unknown judge '$judge' (expected fable5 or gpt5.5)." >&2
+    exit 2
+    ;;
+esac
 
 shopt -s nullglob
 answers=("$answers_dir"/panelist_*.md)
@@ -116,42 +137,55 @@ EOF
   done
 } > "$prompt_file"
 
-# Hermetic codex home (auth only) + ignore user config so the judge can't inherit cross-project context
-# from ~/.codex (Finding #0 — a contaminated judge once confabulated an unrelated project's task).
-export CODEX_HOME="$(fusion_codex_home)"
+if [ "$judge" = "fable5" ]; then
+  # Fresh blind Fable 5 subprocess: cold context, anonymized answers only. Runs in the scratch dir so any
+  # file writes (Track A candidate runs) never touch the repo; wall-clock bounded like every other stage.
+  judge_model="${FUSION_CLAUDE_MODEL:-claude-fable-5}"
+  ( cd "$scratch" && fusion_run_timeout "$(fusion_default_timeout)" claude \
+      --print \
+      --dangerously-skip-permissions \
+      --model "$judge_model" \
+      "$(cat "$prompt_file")" ) > "$output_file" 2> "$scratch/stream.log"
+  status=$?
+else
+  # GPT-5.5 judge via codex. Hermetic codex home (auth only) + ignore user config so the judge can't
+  # inherit cross-project context from ~/.codex (Finding #0 — a contaminated judge once confabulated an
+  # unrelated project's task).
+  judge_model="${JUDGE_MODEL:-gpt-5.5}"   # override to A/B the codex judge (e.g. JUDGE_MODEL=gpt-5.5-codex)
+  export CODEX_HOME="$(fusion_codex_home)"
+  fusion_run_timeout "$(fusion_default_timeout)" codex exec \
+    --skip-git-repo-check \
+    --ignore-user-config \
+    --cd "$scratch" \
+    -s workspace-write \
+    -c tools.web_search=true \
+    -c "model_reasoning_effort=$effort" \
+    -m "$judge_model" \
+    -o "$output_file" \
+    - < "$prompt_file" \
+    > "$scratch/stream.log" 2>&1
+  status=$?
+fi
 
-fusion_run_timeout "$(fusion_default_timeout)" codex exec \
-  --skip-git-repo-check \
-  --ignore-user-config \
-  --cd "$scratch" \
-  -s workspace-write \
-  -c tools.web_search=true \
-  -c "model_reasoning_effort=$effort" \
-  -m "$judge_model" \
-  -o "$output_file" \
-  - < "$prompt_file" \
-  > "$scratch/stream.log" 2>&1
-
-status=$?
 if [ $status -eq 124 ]; then
-  echo "[run_judge.sh] codex judge timed out after $(fusion_default_timeout)s — caller should fall back to Fable." >&2
+  echo "[run_judge.sh] $judge judge timed out after $(fusion_default_timeout)s — caller should do the discernment inline." >&2
   exit 1
 fi
 if [ $status -ne 0 ] || [ ! -s "$output_file" ]; then
-  echo "[run_judge.sh] codex judge exited $status; tail of log:" >&2
+  echo "[run_judge.sh] $judge judge exited $status; tail of log:" >&2
   tail -20 "$scratch/stream.log" >&2
   exit 1
 fi
 
-# Validate the discernment actually has the required structure. A codex judge can return non-empty but
-# off-task output (e.g. contaminated by local project context) — that must trigger the Fable fallback, not
-# be synthesized over. Require the load-bearing section headers.
+# Validate the discernment actually has the required structure. A judge can return non-empty but off-task
+# output — that must trigger the inline fallback, not be synthesized over. Require the load-bearing
+# section headers.
 missing=""
 for h in "Per-panelist assessment" "Consensus" "Contradictions" "Discernment verdict"; do
   grep -qiF "$h" "$output_file" || missing="$missing \"$h\""
 done
 if [ -n "$missing" ]; then
-  echo "[run_judge.sh] judge output missing required sections:${missing} — treating as failed; caller should fall back to Fable." >&2
+  echo "[run_judge.sh] judge output missing required sections:${missing} — treating as failed; caller should do the discernment inline." >&2
   exit 1
 fi
-echo "[run_judge.sh] ok -> $output_file (judge=$judge_model, effort=$effort, panelists=${#answers[@]})"
+echo "[run_judge.sh] ok -> $output_file (judge=$judge model=$judge_model, effort=$effort, panelists=${#answers[@]})"

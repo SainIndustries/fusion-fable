@@ -1,24 +1,26 @@
 # Judge rubric — discernment, then synthesis
 
-This fork splits the old single "judge + write" pass into two stages, each given to the model that's
-better at it:
+This fork splits the old single "judge + write" pass into two stages, kept in separate contexts:
 
-1. **Discernment (the judge) — GPT-5.5 via `scripts/run_judge.sh`.** Reads every panelist answer *after*
-   all returned independently and produces a structured analysis: who's right, where they conflict, what's
-   load-bearing vs weak. It does **not** write the final answer.
+1. **Discernment (the judge) — a fresh, blind Claude Fable 5 subprocess via `scripts/run_judge.sh`**
+   (GPT-5.5 via codex when explicitly requested: judge arg `gpt5.5` / `FUSION_JUDGE=gpt5.5` /
+   `/fusion-gpt5.5`). Reads every panelist answer *after* all returned independently and produces a
+   structured analysis: who's right, where they conflict, what's load-bearing vs weak. It does **not**
+   write the final answer.
 2. **Synthesis (the writer) — Fable 5, the orchestrator (you).** Reads the judge's discernment doc plus
    the raw answers and writes the final answer grounded in it. Fable 5 always writes the final answer — the
    invariant holds.
 
-If codex is unavailable (not installed, or capped — `run_judge.sh` exits non-zero), **you (Fable) do the
-discernment yourself** using this same rubric, then synthesize. A missing judge degrades the run; it never
-breaks it.
+If the judge subprocess is unavailable or fails (`run_judge.sh` exits non-zero), **you (the orchestrating
+Fable session) do the discernment yourself, inline** using this same rubric, then synthesize. A missing
+judge degrades the run; it never breaks it.
 
 Two non-negotiables for the discernment stage:
 
 - **Anonymize.** Panelist answers go to the judge as Panelist A / B / C in shuffled order; the judge never
-  learns which model wrote which. This is what stops a GPT-5.5 judge from favoring the GPT-5.5 panelist's
-  own answer. You keep the label→model map and restore real attribution only at synthesis time.
+  learns which model wrote which. This is what stops a judge from favoring its own model family's panelist
+  answer — a Fable judge the Fable panelist's, a GPT-5.5 judge the codex panelist's. You keep the
+  label→model map and restore real attribution only at synthesis time.
 - **Classify the deliverable first**, because code and prose are judged completely differently:
   - **Artifact task** (code, script, config, schema, datapack) → **Track A: run both, then merge.**
   - **Research / analysis task** (understanding, a recommendation, a written answer) → **Track B:
@@ -34,9 +36,9 @@ Two non-negotiables for the discernment stage:
 The output is **one working artifact**, not a prose report and not two solutions pasted together. Decide
 what to keep by **actually running the candidates** — don't merge from reading alone.
 
-The discernment stage is a strong fit for a codex judge here: `run_judge.sh` gives codex a writable sandbox
-with the candidates copied in, so it can build and run each one and report observed behavior. Whoever does
-discernment (codex judge, or Fable on fallback) should:
+`run_judge.sh` gives the judge subprocess (Fable or codex) a writable sandbox with the candidates copied
+in, so it can build and run each one and report observed behavior. Whoever does discernment (the judge
+subprocess, or the orchestrator on inline fallback) should:
 
 1. **Understand each candidate.** Architecture/approach, what it gets right, where it's buggy, incomplete,
    or fragile; the concrete differences (APIs, data structures, algorithms, file layouts, edge cases).

@@ -5,21 +5,19 @@
 #
 #   fan out (blind panelists) → JUDGE (discernment) → SYNTHESIZE (creative final answer)
 #
-# - Panelists answer the task independently, in parallel, none seeing the others.
+# - Panelists answer the task independently, in parallel, none seeing the others. The default panel is
+#   deliberately CROSS-MODEL: one Claude Fable 5, one Claude Opus 4.8, one GPT-5.5 — three different
+#   models/tiers, maximum diversity per panelist.
 # - The JUDGE does discernment only: scores the answers, finds consensus/contradictions, decides what's
-#   load-bearing and well-supported vs weak. GPT-5.5 (codex) is the preferred judge — it's stronger at
-#   discrimination. If codex is unavailable it falls back to Fable 5 judging.
-# - The SYNTHESIZER is ALWAYS Claude Fable 5 — it's better at creative synthesis and writes the final
-#   answer grounded in the judge's discernment. This is the invariant: Fable always drives and writes the
-#   final answer; the pipeline can't be reversed.
+#   load-bearing and well-supported vs weak. The default judge is Fable 5, run as a FRESH blind subprocess
+#   over the anonymized answers. Set FUSION_JUDGE=gpt5.5 to hand discernment to GPT-5.5 (codex) instead.
+# - The SYNTHESIZER is ALWAYS Claude Fable 5 — it writes the final answer grounded in the judge's
+#   discernment. This is the invariant: Fable always drives and writes the final answer; the pipeline
+#   can't be reversed.
 #
-# Now that Fable 5 is generally available, the Claude panelists run the REAL model (claude-fable-5) —
-# no more Opus-with-a-Fable-persona workaround. Override with FUSION_CLAUDE_MODEL (legacy: set it to
-# `opus` plus FUSION_FABLE5_PROMPT for accounts without Fable access).
-#
-# Default panel drops Gemini in favor of a second Fable panelist (more within-model diversity, no extra
-# CLI/auth to babysit). Set FUSION_USE_GEMINI=1 to add Gemini as an optional extra panelist if its CLI is
-# present.
+# Claude panelists run the real models via the claude CLI (claude-fable-5 / opus). Override with
+# FUSION_CLAUDE_MODEL (Fable panelist + judge) and FUSION_OPUS_MODEL (Opus panelist).
+# Set FUSION_USE_GEMINI=1 to add Gemini as an optional extra panelist if its CLI is present.
 #
 # Output: human-readable lines, then a machine-parseable block the orchestrator greps:
 #   PANEL=<comma-separated panelists>   JUDGE=<model>   SYNTH=<model>   SLUG=<slug>
@@ -31,31 +29,51 @@ have codex  && codex_ok=true
 have gemini && gemini_ok=true
 
 claude_ok=false; have claude && claude_ok=true
-claude_model="${FUSION_CLAUDE_MODEL:-claude-fable-5}"
+fable_model="${FUSION_CLAUDE_MODEL:-claude-fable-5}"
+opus_model="${FUSION_OPUS_MODEL:-opus}"
 
 echo "fusion panel detection (pipeline: fan out → judge → synthesize):"
-printf "  fable5       : %s (claude CLI panelists, model=%s; also the synthesizer)\n" \
-  "$([ "$claude_ok" = true ] && echo yes || echo 'NO — claude CLI not on PATH')" "$claude_model"
-printf "  gpt5.5       : %s (codex CLI — preferred JUDGE; also a panelist)\n" \
+printf "  fable5       : %s (claude CLI, model=%s; panelist + DEFAULT JUDGE + synthesizer)\n" \
+  "$([ "$claude_ok" = true ] && echo yes || echo 'NO — claude CLI not on PATH')" "$fable_model"
+printf "  opus4.8      : %s (claude CLI, model=%s; panelist)\n" \
+  "$([ "$claude_ok" = true ] && echo yes || echo 'NO — claude CLI not on PATH')" "$opus_model"
+printf "  gpt5.5       : %s (codex CLI; panelist — judges only when FUSION_JUDGE=gpt5.5)\n" \
   "$([ "$codex_ok" = true ] && echo yes || echo NO)"
 printf "  gemini3.1pro : %s (optional extra panelist; off unless FUSION_USE_GEMINI=1)\n" \
   "$([ "$gemini_ok" = true ] && echo yes || echo NO)"
 echo
 
-# --- Panel: two independent Fable 5 runs + GPT-5.5 (if codex present). Gemini only when opted in. ---
-panel="fable5,fable5"
-panel_label="fable5x2"
+# --- Panel: one Fable 5 + one Opus 4.8 (claude CLI) + one GPT-5.5 (codex). Gemini only when opted in. ---
+panel=""
+panel_label=""
+if $claude_ok; then
+  panel="fable5,opus4.8"
+  panel_label="fable5+opus4.8"
+fi
 if $codex_ok; then
-  panel="$panel,gpt5.5"
-  panel_label="${panel_label}+gpt5.5"
+  panel="${panel:+$panel,}gpt5.5"
+  panel_label="${panel_label:+$panel_label+}gpt5.5"
 fi
 if [ "${FUSION_USE_GEMINI:-0}" = "1" ] && $gemini_ok; then
   panel="$panel,gemini3.1pro"
   panel_label="${panel_label}+gemini3.1pro"
 fi
+if [ -z "$panel" ]; then
+  echo "ERROR: neither the claude nor the codex CLI is available — no panel can run." >&2
+  exit 1
+fi
 
-# --- Judge: GPT-5.5 for discernment when codex is available, else Fable judges itself. ---
-if $codex_ok; then judge="gpt5.5"; else judge="fable5"; fi
+# --- Judge: Fable 5 by default (fresh blind subprocess). FUSION_JUDGE=gpt5.5 opts into a codex judge. ---
+judge="${FUSION_JUDGE:-fable5}"
+judge_note=""
+if [ "$judge" = "gpt5.5" ] && ! $codex_ok; then
+  judge="fable5"
+  judge_note="   (FUSION_JUDGE=gpt5.5 but codex not found — falling back to Fable judging)"
+fi
+if [ "$judge" = "fable5" ] && ! $claude_ok; then
+  judge="gpt5.5"
+  judge_note="   (claude CLI not found — falling back to a GPT-5.5 judge)"
+fi
 
 # --- Synthesizer: always Fable 5. ---
 synth="fable5"
@@ -64,9 +82,9 @@ slug="${panel_label}·judge:${judge}·synth:${synth}"
 
 echo "recommended pipeline:"
 echo "  panel       : $panel"
-echo "  judge       : $judge$([ "$judge" = fable5 ] && echo '   (codex not found — falling back to Fable judging)')"
+echo "  judge       : $judge$judge_note"
 echo "  synthesize  : $synth"
-echo "  fable panelists run: claude --print --dangerously-skip-permissions --model $claude_model"
+echo "  claude panelists run: claude --print --dangerously-skip-permissions --model $fable_model | $opus_model"
 echo
 # Mint a private per-run directory so concurrent Fusion runs (different sessions/projects on one machine)
 # can't clobber each other's intermediate files. The orchestrator must use THIS path for every temp file
