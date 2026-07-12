@@ -11,9 +11,11 @@ judges** as a FRESH blind subprocess over the anonymized answers (per-panelist a
 contradictions, partial coverage, unique insights, blind spots, verdict) → **Fable 5 synthesizes** the
 final answer grounded in it.
 
-This pipeline needs no external CLI beyond `claude` — use it when codex is unavailable, capped, or you
-deliberately want an all-Claude run. Follow the skill's SKILL.md exactly. Do NOT add a GPT-5.5 or Gemini
-panelist, and do NOT route the judging to GPT-5.5, even if codex is installed — this command is pinned to
-Fable judging and synthesizing. Do not assign the two runs any "lenses" — pass the task verbatim to both.
+This is exactly the Opus 4.8 FALLBACK panel: it needs no external CLI beyond `claude` — use it when codex
+is unavailable, capped, or you deliberately want an all-Claude run (detect_panel.sh selects this same
+composition automatically when codex/GPT-5.6 is absent). Follow the skill's SKILL.md exactly. Do NOT add a
+GPT-5.6 or Gemini panelist, and do NOT route the judging to GPT-5.6, even if codex is installed — this
+command is pinned to Fable judging and synthesizing. Do not assign the two runs any "lenses" — pass the
+task verbatim to both.
 
 Task: $ARGUMENTS

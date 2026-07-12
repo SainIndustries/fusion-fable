@@ -3,8 +3,8 @@
 This fork splits the old single "judge + write" pass into two stages, kept in separate contexts:
 
 1. **Discernment (the judge) — a fresh, blind Claude Fable 5 subprocess via `scripts/run_judge.sh`**
-   (GPT-5.5 via codex when explicitly requested: judge arg `gpt5.5` / `FUSION_JUDGE=gpt5.5` /
-   `/fusion-gpt5.5`). Reads every panelist answer *after* all returned independently and produces a
+   (GPT-5.6 via codex when explicitly requested: judge arg `gpt5.6` / `FUSION_JUDGE=gpt5.6` /
+   `/fusion-gpt5.6`). Reads every panelist answer *after* all returned independently and produces a
    structured analysis: who's right, where they conflict, what's load-bearing vs weak. It does **not**
    write the final answer.
 2. **Synthesis (the writer) — Fable 5, the orchestrator (you).** Reads the judge's discernment doc plus
@@ -19,7 +19,7 @@ Two non-negotiables for the discernment stage:
 
 - **Anonymize.** Panelist answers go to the judge as Panelist A / B / C in shuffled order; the judge never
   learns which model wrote which. This is what stops a judge from favoring its own model family's panelist
-  answer — a Fable judge the Fable panelist's, a GPT-5.5 judge the codex panelist's. You keep the
+  answer — a Fable judge the Fable panelist's, a GPT-5.6 judge the codex panelist's. You keep the
   label→model map and restore real attribution only at synthesis time.
 - **Classify the deliverable first**, because code and prose are judged completely differently:
   - **Artifact task** (code, script, config, schema, datapack) → **Track A: run both, then merge.**

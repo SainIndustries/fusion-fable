@@ -15,14 +15,15 @@ mkdir -p "$CLAUDE_DIR/skills" "$CLAUDE_DIR/commands"
 
 rm -rf "$CLAUDE_DIR/skills/fusion"
 cp "$HERE/commands/"*.md "$CLAUDE_DIR/commands/"
-# Remove commands renamed in the Fable 5 migration so stale copies don't linger.
-rm -f "$CLAUDE_DIR/commands/fusion-opus4.8.md"
+# Remove commands renamed in past migrations so stale copies don't linger.
+rm -f "$CLAUDE_DIR/commands/fusion-opus4.8.md"   # pre-Fable-GA
+rm -f "$CLAUDE_DIR/commands/fusion-gpt5.5.md"    # renamed to fusion-gpt5.6 in the GPT-5.6 migration
 cp -R "$HERE/skills/fusion" "$CLAUDE_DIR/skills/fusion"
 chmod +x "$CLAUDE_DIR/skills/fusion/scripts/"*.sh
 
 echo "✓ Installed Fusion-Fable (Sain Industries fork) into $CLAUDE_DIR"
 echo "    skill    : $CLAUDE_DIR/skills/fusion"
-echo "    commands : /fusion  /fusion-gpt5.5  /fusion-fable5  /fusion-variant  /codex-expert"
+echo "    commands : /fusion  /fusion-gpt5.6  /fusion-fable5  /fusion-variant  /codex-expert"
 echo "    variants : $(cd "$CLAUDE_DIR/skills/fusion/variants" 2>/dev/null && ls -- *.env 2>/dev/null | sed 's/\.env$//' | tr '\n' ' ')"
 echo
 
@@ -33,19 +34,19 @@ claude_model="${FUSION_CLAUDE_MODEL:-claude-fable-5}"
 opus_model="${FUSION_OPUS_MODEL:-opus}"
 echo "Pipeline availability here (fan out → judge → synthesize):"
 if have claude; then
-  echo "  panelists: Claude Fable 5 + Claude Opus 4.8 via the claude CLI; Fable 5 also judges (blind subprocess)"
-  echo "             (claude --print --dangerously-skip-permissions --model $claude_model | $opus_model)"
+  echo "  claude   : Claude Fable 5 panelist + blind Fable 5 judge + synthesizer, via the claude CLI"
+  echo "             (claude --print --dangerously-skip-permissions --model $claude_model)"
 else
-  echo "  panelists: WARNING — 'claude' CLI not on PATH; Claude panelists fall back to Agent subagents"
+  echo "  claude   : WARNING — 'claude' CLI not on PATH; Claude panelists fall back to Agent subagents"
 fi
 if have codex; then
-  echo "  flagship : ready — Fable 5 + Opus 4.8 + GPT-5.5 panel, Fable 5 judges + synthesizes"
-  echo "             (GPT-5.5 judging available via FUSION_JUDGE=gpt5.5 or /fusion-gpt5.5)"
+  echo "  flagship : ready — Fable 5 + GPT-5.6 panel, Fable 5 judges + synthesizes"
+  echo "             (GPT-5.6 judging available via FUSION_JUDGE=gpt5.6 or /fusion-gpt5.6)"
   echo "             (codex found: $(codex --version 2>/dev/null | head -1))"
   echo "  experts  : ready — persistent codex domain experts via /codex-expert (codex exec resume)"
 else
-  echo "  flagship : needs the 'codex' CLI for the GPT-5.5 panelist (install + log in)"
-  echo "  fallback : ready — Fable 5 + Opus 4.8 panel, Fable judges + synthesizes (claude CLI only)"
+  echo "  flagship : needs the 'codex' CLI for the GPT-5.6 panelist (install + log in)"
+  echo "  fallback : ready — Fable 5 + Opus 4.8 panel (Opus is the codex-absent fallback), Fable judges (claude CLI only)"
   echo "  experts  : needs the 'codex' CLI for persistent domain experts"
 fi
 if have gemini; then

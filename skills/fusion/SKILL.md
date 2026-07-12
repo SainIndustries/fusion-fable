@@ -1,13 +1,14 @@
 ---
 name: fusion
 description: >-
-  Answer a hard question by fanning it out to a cross-model PANEL running in parallel — one Claude Fable 5,
-  one Claude Opus 4.8, and one GPT-5.5 (codex), each answering independently with web search and bash, none
-  seeing the others' work — then having a FRESH blind Claude Fable 5 subprocess JUDGE the anonymized
-  answers into a structured discernment (per-panelist assessment, consensus, contradictions, partial
-  coverage, unique insights, blind spots, verdict) and the Fable 5 session SYNTHESIZE the final answer
-  grounded in it. GPT-5.5 can judge instead when explicitly requested (FUSION_JUDGE=gpt5.5 or
-  /fusion-gpt5.5). Fable 5 always writes the final answer — the pipeline can't be reversed. ONLY invoke
+  Answer a hard question by fanning it out to a cross-model PANEL running in parallel — one Claude Fable 5
+  and one GPT-5.6 (codex), each answering independently with web search and bash, none seeing the others'
+  work (Opus 4.8 is the automatic fallback second panelist when codex is unavailable) — then having a FRESH
+  blind Claude Fable 5 subprocess JUDGE the anonymized answers into a structured discernment (per-panelist
+  assessment, consensus, contradictions, partial coverage, unique insights, blind spots, verdict) and the
+  Fable 5 session SYNTHESIZE the final answer grounded in it. GPT-5.6 can judge instead when explicitly
+  requested (FUSION_JUDGE=gpt5.6 or /fusion-gpt5.6). Fable 5 always writes the final answer — the pipeline
+  can't be reversed. ONLY invoke
   this skill when the user EXPLICITLY asks for it: they say "fusion", use a /fusion command, or explicitly
   ask for a multi-model / panel / ensemble / cross-model answer. Do NOT auto-trigger it for merely hard
   questions — Fable 5 is the frontier model and a single direct Fable 5 answer is the default; Fusion is
@@ -21,21 +22,22 @@ description: >-
 
 Fusion turns one prompt into a panel. The question goes to several models **at the same time**, each
 answering independently — with web search and bash, and with no knowledge of the others. The default panel
-is deliberately **cross-model**: three different models (two Claude tiers + GPT-5.5), maximum diversity per
-panelist. Then the pipeline splits the old single "judge" step into two stages:
+is deliberately **cross-model**: two different model families (Claude Fable 5 + GPT-5.6), maximum diversity
+per panelist. Opus 4.8 is the automatic fallback second panelist, used when codex/GPT-5.6 isn't available.
+Then the pipeline splits the old single "judge" step into two stages:
 
 ```
             ┌─ Fable 5 panelist ───┐
-prompt ─fan─┼─ Opus 4.8 panelist ──┼─→ Fable 5 JUDGE ───→ Fable 5 SYNTHESIZE ─→ final answer
-       out  └─ GPT-5.5 panelist ───┘   (fresh blind          (creative answer,
-                                        subprocess:            grounded in the
+prompt ─fan─┤                      ├─→ Fable 5 JUDGE ───→ Fable 5 SYNTHESIZE ─→ final answer
+       out  └─ GPT-5.6 panelist ───┘   (fresh blind          (creative answer,
+              (Opus 4.8 if no codex)    subprocess:            grounded in the
                                         scores, consensus,     discernment,
                                         contradictions,        written by your
                                         verdict — no answer)   session)
 ```
 
 The whole mechanism is **independence, then discernment, then synthesis**. The diversity that makes a panel
-beat a single model is harvested, not manufactured: three different models given the same prompt take
+beat a single model is harvested, not manufactured: two different models given the same prompt take
 different reasoning paths, tool calls, and sources. So there are no assigned "lenses" or personas; every
 panelist gets the task verbatim and answers it straight. (See `references/panel.md`.)
 
@@ -43,7 +45,7 @@ panelist gets the task verbatim and answers it straight. (See `references/panel.
 subprocess** over anonymized answers — a cold context that never saw the fan-out and can't be anchored by
 it — while the synthesizer is your warm session, which writes the final answer grounded in the judge's
 discernment. Discernment stays skeptical and blind; synthesis stays creative and accountable. To hand
-discernment to GPT-5.5 instead (cross-model judging), set `FUSION_JUDGE=gpt5.5` or use `/fusion-gpt5.5`.
+discernment to GPT-5.6 instead (cross-model judging), set `FUSION_JUDGE=gpt5.6` or use `/fusion-gpt5.6`.
 
 **One hard rule: Fable 5 always writes the final answer — the pipeline can't be reversed.** The panelist
 models can't call back out to spawn Fable, so Fable is always the driver and the synthesizer. The judge is
@@ -70,8 +72,8 @@ bash <skill_dir>/scripts/detect_panel.sh
 
 It prints a machine-parseable block — grep these:
 
-- `PANEL=` the panelists that will answer blind (default `fable5,opus4.8,gpt5.5`).
-- `JUDGE=` the discernment model (default `fable5`; `gpt5.5` when `FUSION_JUDGE=gpt5.5` and codex present).
+- `PANEL=` the panelists that will answer blind (default `fable5,gpt5.6`; `fable5,opus4.8` when codex is absent).
+- `JUDGE=` the discernment model (default `fable5`; `gpt5.6` when `FUSION_JUDGE=gpt5.6` and codex present).
 - `SYNTH=` the synthesizer — always `fable5`.
 - `SLUG=` the human-readable label for what you ran.
 - `RUN_DIR=` a **fresh private directory for this run**. Use it for *every* intermediate file below
@@ -80,9 +82,9 @@ It prints a machine-parseable block — grep these:
 
 | Condition | Panel | Judge | Synth |
 | --- | --- | --- | --- |
-| default (claude + codex present) | Fable 5 + Opus 4.8 + GPT-5.5 | Fable 5 (fresh blind subprocess) | Fable 5 |
-| codex absent | Fable 5 + Opus 4.8 | Fable 5 | Fable 5 |
-| `FUSION_JUDGE=gpt5.5` (or `/fusion-gpt5.5`) | Fable 5 + Opus 4.8 + GPT-5.5 | GPT-5.5 | Fable 5 |
+| default (claude + codex present) | Fable 5 + GPT-5.6 | Fable 5 (fresh blind subprocess) | Fable 5 |
+| codex absent (Opus 4.8 fallback) | Fable 5 + Opus 4.8 | Fable 5 | Fable 5 |
+| `FUSION_JUDGE=gpt5.6` (or `/fusion-gpt5.6`) | Fable 5 + GPT-5.6 | GPT-5.6 | Fable 5 |
 | `FUSION_USE_GEMINI=1` + gemini present | + Gemini 3.1 Pro as an extra panelist | (unchanged) | Fable 5 |
 
 If the user named a panel or judge, honor it — but if a required CLI is missing, say so and fall back
@@ -105,31 +107,36 @@ Read `references/panel.md`. Build each panelist's prompt as the user's task **ve
 instruction to research with web + bash and return a complete, self-contained answer as one of several
 independent experts who won't see the others' work. Do not assign lenses; do not pre-digest the task.
 
-Launch **all panelists in a single turn** so they run concurrently:
+Launch **the panelists named by `PANEL=`, all in a single turn** so they run concurrently. The default
+panel is `fable5,gpt5.6`; when codex is absent the detector substitutes `fable5,opus4.8`.
 
-- **Claude panelists (default)** → headless `claude` CLI subprocesses, with permissions skipped so each
-  researches autonomously (web + bash). Write each panelist's prompt to a temp file and run one **Fable 5**
-  and one **Opus 4.8** in the background with the *same* prompt:
+- **Fable 5 panelist (always present)** → headless `claude` CLI subprocess, permissions skipped so it
+  researches autonomously (web + bash). Write its prompt to a temp file and run in the background:
   ```bash
   bash <skill_dir>/scripts/run_claude.sh "$RUN_DIR/fable_prompt.txt" "$RUN_DIR/fable_out.md"        # claude-fable-5
-  bash <skill_dir>/scripts/run_claude.sh "$RUN_DIR/opus_prompt.txt"  "$RUN_DIR/opus_out.md"  opus   # Opus 4.8
   ```
   It uses `--dangerously-skip-permissions` so the panelist uses tools without prompts — deliberate for an
   isolated panelist, contained to a scratch dir. Each run is wall-clock bounded by `FUSION_TIMEOUT`
-  (default 900s). Override the models with `FUSION_CLAUDE_MODEL` (Fable) / `FUSION_OPUS_MODEL` (Opus).
-  *(Alternative: if you don't want headless CLI subprocesses, spawn two `Agent` subagents
-  `subagent_type: general-purpose` — one with `model: fable`, one with `model: opus` — same effect.)*
-- **GPT-5.5 panelist** → write its prompt to a temp file and run in the background:
+  (default 900s). Override the model with `FUSION_CLAUDE_MODEL`.
+  *(Alternative: if you don't want headless CLI subprocesses, spawn an `Agent` subagent
+  `subagent_type: general-purpose` with `model: fable` — same effect.)*
+- **GPT-5.6 panelist (default second panelist)** → write its prompt to a temp file and run in the background:
   ```bash
   bash <skill_dir>/scripts/run_codex.sh "$RUN_DIR/codex_prompt.txt" "$RUN_DIR/codex_out.md" medium
   ```
+- **Opus 4.8 panelist (fallback only)** → run this *instead of* GPT-5.6 when `PANEL=` names `opus4.8`
+  (codex absent, or the `fable5-duo` / `/fusion-fable5` harness). Same runner as Fable, `opus` model arg:
+  ```bash
+  bash <skill_dir>/scripts/run_claude.sh "$RUN_DIR/opus_prompt.txt"  "$RUN_DIR/opus_out.md"  opus   # Opus 4.8
+  ```
+  Override with `FUSION_OPUS_MODEL`. *(Agent alternative: `model: opus`.)*
 - **Gemini panelist (only if `FUSION_USE_GEMINI=1`)** →
   `bash <skill_dir>/scripts/run_gemini.sh "$RUN_DIR/gemini_prompt.txt" "$RUN_DIR/gemini_out.md"`.
 
 Map each `PANEL=` token to its runner: `fable5` → `run_claude.sh` (default model), `opus4.8` →
-`run_claude.sh … opus`, `gpt5.5` → `run_codex.sh`, `gemini3.1pro` → `run_gemini.sh`. **Duplicate tokens are
-independent cold runs** of the same runner (e.g. a variant panel `opus4.8,opus4.8,gpt5.5` launches
-`run_claude.sh` twice with separate prompt/output files).
+`run_claude.sh … opus`, `gpt5.6` (or legacy `gpt5.5`) → `run_codex.sh`, `gemini3.1pro` → `run_gemini.sh`.
+**Duplicate tokens are independent cold runs** of the same runner (e.g. a variant panel
+`opus4.8,opus4.8,gpt5.5` launches `run_claude.sh` twice with separate prompt/output files).
 
 Keep panelists isolated: never paste one panelist's output into another's prompt. A panelist that fails or
 is dropped is **absent**, never silent agreement.
@@ -141,8 +148,10 @@ It shuffles the returned answers into blind Panelist A/B/C labels with a real RN
 `map.json`, skipping any empty/dropped panelist:
 
 ```bash
+# Pass whichever panelist outputs this run actually produced; anonymize.sh skips missing/empty sources.
+# Default panel → fable_out + codex_out. Opus-fallback / duo run → fable_out + opus_out.
 bash <skill_dir>/scripts/anonymize.sh "$RUN_DIR/answers" \
-  "$RUN_DIR/fable_out.md" "$RUN_DIR/opus_out.md" "$RUN_DIR/codex_out.md"
+  "$RUN_DIR/fable_out.md" "$RUN_DIR/codex_out.md" "$RUN_DIR/opus_out.md"
 ```
 
 The label→source map lives at `$RUN_DIR/answers/map.json` (not in your head) — read it back at synthesis to
@@ -154,8 +163,8 @@ Run the judge over the anonymized answers — by default a **fresh blind Fable 5
 
 ```bash
 bash <skill_dir>/scripts/run_judge.sh "$RUN_DIR/task.txt" "$RUN_DIR/answers" "$RUN_DIR/judge.md" high
-# GPT-5.5 judging instead (only when the user asked for it / /fusion-gpt5.5):
-# bash <skill_dir>/scripts/run_judge.sh "$RUN_DIR/task.txt" "$RUN_DIR/answers" "$RUN_DIR/judge.md" high gpt5.5
+# GPT-5.6 judging instead (only when the user asked for it / /fusion-gpt5.6):
+# bash <skill_dir>/scripts/run_judge.sh "$RUN_DIR/task.txt" "$RUN_DIR/answers" "$RUN_DIR/judge.md" high gpt5.6
 ```
 
 Read `references/judge_rubric.md`. The judge **classifies the deliverable first** (Track A: code/artifact →
