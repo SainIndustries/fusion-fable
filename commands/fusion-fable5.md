@@ -1,14 +1,14 @@
 ---
-description: Fusion zero-setup — Fable 5 + Opus 4.8 panel via the claude CLI only, Fable judges + synthesizes (no codex)
+description: Fusion zero-setup — Fable 5.1 + Opus 4.8 panel via the claude CLI only, Fable judges + synthesizes (no codex)
 argument-hint: <your question>
 ---
 Invoke the **fusion** skill on the task below, forcing the claude-CLI-only pipeline. This is an EXPLICIT
 invocation, so the skill's trigger gate is satisfied — but its Step 0 model gate still applies: the driving
-session must be Claude Fable 5. The pipeline:
-run the same prompt as TWO independent Claude panelists — one Fable 5 and one Opus 4.8 (headless `claude`
-CLI subprocesses via `scripts/run_claude.sh`, in parallel, neither seeing the other's work) → **Fable 5
+session must be Claude Fable 5.1. The pipeline:
+run the same prompt as TWO independent Claude panelists — one Fable 5.1 and one Opus 4.8 (headless `claude`
+CLI subprocesses via `scripts/run_claude.sh`, in parallel, neither seeing the other's work) → **Fable 5.1
 judges** as a FRESH blind subprocess over the anonymized answers (per-panelist assessment, consensus,
-contradictions, partial coverage, unique insights, blind spots, verdict) → **Fable 5 synthesizes** the
+contradictions, partial coverage, unique insights, blind spots, verdict) → **Fable 5.1 synthesizes** the
 final answer grounded in it.
 
 This is exactly the Opus 4.8 FALLBACK panel: it needs no external CLI beyond `claude` — use it when codex

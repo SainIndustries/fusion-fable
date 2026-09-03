@@ -6,17 +6,17 @@
 #   fan out (blind panelists) → JUDGE (discernment) → SYNTHESIZE (creative final answer)
 #
 # - Panelists answer the task independently, in parallel, none seeing the others. The default panel is
-#   deliberately CROSS-MODEL: one Claude Fable 5 + one GPT-5.6 (codex) — two different model families,
+#   deliberately CROSS-MODEL: one Claude Fable 5.1 + one GPT-5.6 Sol (codex) — two different model families,
 #   maximum diversity per panelist. Opus 4.8 is the FALLBACK second panelist: it substitutes for GPT-5.6
 #   automatically when the codex CLI isn't available (or when you don't want codex for the job).
 # - The JUDGE does discernment only: scores the answers, finds consensus/contradictions, decides what's
-#   load-bearing and well-supported vs weak. The default judge is Fable 5, run as a FRESH blind subprocess
+#   load-bearing and well-supported vs weak. The default judge is Fable 5.1, run as a FRESH blind subprocess
 #   over the anonymized answers. Set FUSION_JUDGE=gpt5.6 to hand discernment to GPT-5.6 (codex) instead.
-# - The SYNTHESIZER is ALWAYS Claude Fable 5 — it writes the final answer grounded in the judge's
+# - The SYNTHESIZER is ALWAYS Claude Fable 5.1 — it writes the final answer grounded in the judge's
 #   discernment. This is the invariant: Fable always drives and writes the final answer; the pipeline
 #   can't be reversed.
 #
-# Claude panelists run the real models via the claude CLI (claude-fable-5 / opus). Override with
+# Claude panelists run the real models via the claude CLI (claude-fable-5-1 / opus). Override with
 # FUSION_CLAUDE_MODEL (Fable panelist + judge) and FUSION_OPUS_MODEL (Opus panelist).
 # Set FUSION_USE_GEMINI=1 to add Gemini as an optional extra panelist if its CLI is present.
 #
@@ -35,14 +35,14 @@ have codex  && codex_ok=true
 have gemini && gemini_ok=true
 
 claude_ok=false; have claude && claude_ok=true
-fable_model="${FUSION_CLAUDE_MODEL:-claude-fable-5}"
+fable_model="${FUSION_CLAUDE_MODEL:-claude-fable-5-1}"
 opus_model="${FUSION_OPUS_MODEL:-opus}"
 
 echo "fusion panel detection (pipeline: fan out → judge → synthesize):"
-printf "  fable5       : %s (claude CLI, model=%s; panelist + DEFAULT JUDGE + synthesizer)\n" \
+printf "  fable5       : %s (Claude Fable 5.1 via claude CLI, model=%s; panelist + DEFAULT JUDGE + synthesizer)\n" \
   "$([ "$claude_ok" = true ] && echo yes || echo 'NO — claude CLI not on PATH')" "$fable_model"
 printf "  gpt5.6       : %s (codex CLI, model=%s; DEFAULT 2nd panelist — judges only when FUSION_JUDGE=gpt5.6)\n" \
-  "$([ "$codex_ok" = true ] && echo yes || echo NO)" "${CODEX_PANELIST_MODEL:-gpt-5.6}"
+  "$([ "$codex_ok" = true ] && echo yes || echo NO)" "${CODEX_PANELIST_MODEL:-gpt-5.6-sol}"
 printf "  opus4.8      : %s (claude CLI, model=%s; FALLBACK 2nd panelist — used when codex/gpt5.6 is absent)\n" \
   "$([ "$claude_ok" = true ] && echo yes || echo 'NO — claude CLI not on PATH')" "$opus_model"
 printf "  gemini3.1pro : %s (optional extra panelist; off unless FUSION_USE_GEMINI=1)\n" \
@@ -55,7 +55,7 @@ fi
 echo
 
 # --- Panel: FUSION_PANEL (usually via a variant preset) wins verbatim; otherwise build the default from
-# --- what's installed: one Fable 5 (claude CLI) + one GPT-5.6 (codex). Opus 4.8 is the FALLBACK second
+# --- what's installed: one Fable 5.1 (claude CLI) + one GPT-5.6 Sol (codex). Opus 4.8 is the FALLBACK second
 # --- panelist — it substitutes for GPT-5.6 only when codex is missing. Gemini only when opted in.
 if [ -n "${FUSION_PANEL:-}" ]; then
   panel="$FUSION_PANEL"
@@ -89,7 +89,7 @@ if [ -z "$panel" ]; then
   exit 1
 fi
 
-# --- Judge: Fable 5 by default (fresh blind subprocess). FUSION_JUDGE=gpt5.6 opts into a codex judge
+# --- Judge: Fable 5.1 by default (fresh blind subprocess). FUSION_JUDGE=gpt5.6 opts into a codex judge
 # --- (gpt5.5 also accepted for legacy presets). ---
 judge="${FUSION_JUDGE:-fable5}"
 judge_note=""
@@ -106,7 +106,7 @@ if [ "$judge" = "fable5" ] && ! $claude_ok; then
   judge_note="   (claude CLI not found — falling back to a GPT-5.6 judge)"
 fi
 
-# --- Synthesizer: always Fable 5. ---
+# --- Synthesizer: always Fable 5.1. The stable fable5 token is retained for preset compatibility. ---
 synth="fable5"
 
 slug="${FUSION_VARIANT:+$FUSION_VARIANT·}${panel_label}·judge:${judge}·synth:${synth}"

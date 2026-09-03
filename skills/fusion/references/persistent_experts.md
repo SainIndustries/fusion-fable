@@ -54,7 +54,7 @@ Conventions that keep an expert useful:
 ## Knobs
 
 - `FUSION_HOME` — where session ids are stored (default `~/.fusion`; experts under `$FUSION_HOME/experts`).
-- `EXPERT_MODEL` — model for experts (default `gpt-5.6`).
+- `EXPERT_MODEL` — model for experts (default `gpt-5.6-sol`).
 - `FUSION_EXPERT_SANDBOX` — codex sandbox mode (default `workspace-write`).
 - `FUSION_EXPERT_CWD` — directory the expert operates in (default: current directory).
 

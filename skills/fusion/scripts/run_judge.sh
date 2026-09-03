@@ -2,14 +2,14 @@
 # run_judge.sh — the DISCERNMENT stage. Runs the judge over the panel's anonymized answers.
 #
 # This is the middle stage of the Sain Industries Fusion pipeline:
-#     fan out (blind panelists) → [ run_judge.sh: discernment ] → Fable 5 synthesizes
+#     fan out (blind panelists) → [ run_judge.sh: discernment ] → Fable 5.1 synthesizes
 #
-# Default judge: **Claude Fable 5**, run as a FRESH headless `claude` subprocess. Running the judge cold —
+# Default judge: **Claude Fable 5.1**, run as a FRESH headless `claude` subprocess. Running the judge cold —
 # instead of having the orchestrator judge inline — keeps discernment blind: the subprocess sees only the
 # anonymized answers, not the orchestrator's memory of which panelist ran where. Optional: GPT-5.6 (codex)
 # as the judge, via the [judge] arg or FUSION_JUDGE=gpt5.6 (the legacy token gpt5.5 is also accepted).
 #
-# The judge does NOT write the final answer. It produces a structured discernment doc that the Fable 5
+# The judge does NOT write the final answer. It produces a structured discernment doc that the Fable 5.1
 # synthesizer consumes: per-panelist assessment, consensus, adjudicated contradictions, partial coverage,
 # unique insights, blind spots, and a verdict on what's load-bearing vs weak.
 #
@@ -138,9 +138,9 @@ EOF
 } > "$prompt_file"
 
 if [ "$judge" = "fable5" ]; then
-  # Fresh blind Fable 5 subprocess: cold context, anonymized answers only. Runs in the scratch dir so any
+  # Fresh blind Fable 5.1 subprocess: cold context, anonymized answers only. Runs in the scratch dir so any
   # file writes (Track A candidate runs) never touch the repo; wall-clock bounded like every other stage.
-  judge_model="${FUSION_CLAUDE_MODEL:-claude-fable-5}"
+  judge_model="${FUSION_CLAUDE_MODEL:-claude-fable-5-1}"
   ( cd "$scratch" && fusion_run_timeout "$(fusion_default_timeout)" claude \
       --print \
       --dangerously-skip-permissions \
@@ -151,7 +151,7 @@ else
   # GPT-5.6 judge via codex. Hermetic codex home (auth only) + ignore user config so the judge can't
   # inherit cross-project context from ~/.codex (Finding #0 — a contaminated judge once confabulated an
   # unrelated project's task).
-  judge_model="${JUDGE_MODEL:-gpt-5.6}"   # override to A/B the codex judge (e.g. JUDGE_MODEL=gpt-5.6-codex)
+  judge_model="${JUDGE_MODEL:-gpt-5.6-sol}"   # override to A/B the codex judge
   export CODEX_HOME="$(fusion_codex_home)"
   fusion_run_timeout "$(fusion_default_timeout)" codex exec \
     --skip-git-repo-check \

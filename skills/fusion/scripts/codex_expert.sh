@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# codex_expert.sh — a PERSISTENT codex (GPT-5.6) domain expert you can talk to across many turns.
+# codex_expert.sh — a PERSISTENT codex (GPT-5.6 Sol) domain expert you can talk to across many turns.
 #
 # Why this exists: for iterative, context-heavy work (debugging a subsystem over many steps, driving a
 # migration, refactoring against a fixed spec), spawning a fresh subagent each turn throws away everything
@@ -17,7 +17,7 @@
 #
 # Env:
 #   FUSION_HOME            state dir (default: ~/.fusion); ids live in $FUSION_HOME/experts/<name>.id
-#   EXPERT_MODEL           model (default: gpt-5.6)
+#   EXPERT_MODEL           model (default: gpt-5.6-sol)
 #   FUSION_EXPERT_SANDBOX  codex sandbox mode (default: workspace-write)
 #   FUSION_EXPERT_CWD      working dir the expert operates in (default: current directory)
 #
@@ -29,7 +29,7 @@ FUSION_HOME="${FUSION_HOME:-$HOME/.fusion}"
 experts_dir="$FUSION_HOME/experts"
 mkdir -p "$experts_dir"
 
-model="${EXPERT_MODEL:-gpt-5.6}"
+model="${EXPERT_MODEL:-gpt-5.6-sol}"
 sandbox="${FUSION_EXPERT_SANDBOX:-workspace-write}"
 workdir="${FUSION_EXPERT_CWD:-$PWD}"
 

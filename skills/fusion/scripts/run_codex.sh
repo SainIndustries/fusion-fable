@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# run_codex.sh — run one GPT-5.6 panelist (via codex) on a prompt, with web search + bash.
+# run_codex.sh — run one GPT-5.6 Sol panelist (via codex) on a prompt, with web search + bash.
 #
 # Usage:
 #   run_codex.sh <prompt_file> <output_file> [reasoning_effort]
@@ -9,8 +9,8 @@
 # - reasoning_effort: low | medium | high   (default: medium)
 #
 # Notes:
-# - `-m` PINS the panelist model (default gpt-5.6, overridable via CODEX_PANELIST_MODEL). Without this codex
-#   runs the account's configured default, so the panel might silently not be the advertised GPT-5.6.
+# - `-m` PINS the panelist model (default gpt-5.6-sol, overridable via CODEX_PANELIST_MODEL). Without this codex
+#   runs the account's configured default, so the panel might silently not be the advertised GPT-5.6 Sol.
 # - `-o/--output-last-message` writes ONLY the agent's final message — no streaming noise to parse.
 # - `-s workspace-write` lets the panelist run shell commands in an isolated scratch dir (the "bash tool").
 # - `-c tools.web_search=true` enables the web search tool.
@@ -26,7 +26,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 prompt_file="${1:?usage: run_codex.sh <prompt_file> <output_file> [reasoning_effort]}"
 output_file="${2:?usage: run_codex.sh <prompt_file> <output_file> [reasoning_effort]}"
 effort="${3:-medium}"
-model="${CODEX_PANELIST_MODEL:-gpt-5.6}"
+model="${CODEX_PANELIST_MODEL:-gpt-5.6-sol}"
 
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/fusion-codex.XXXXXX")"
 trap 'rm -rf "$scratch"' EXIT
