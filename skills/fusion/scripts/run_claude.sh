@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# run_claude.sh — run one Claude panelist via the `claude` CLI (Fable 5 by default; pass `opus` as the
+# run_claude.sh — run one Claude panelist via the `claude` CLI (Fable 5.1 by default; pass `opus` as the
 # model arg for the Opus 4.8 panelist).
 #
 # This is the DEFAULT way Fusion runs its Claude panelists: a headless `claude` subprocess that answers
-# the task autonomously with web + bash. Now that Fable 5 is generally available, the panelist runs the
-# REAL model (`claude-fable-5`) with its native system prompt — no persona injection needed.
+# the task autonomously with web + bash. The panelist runs the real Fable 5.1 model
+# (`claude-fable-5-1`) with its native system prompt — no persona injection needed.
 #
 # Usage:
 #   run_claude.sh <prompt_file> <output_file> [model]
 #
 # - <prompt_file>  : the FULL panelist prompt (verbatim user task + the short independent-expert instruction).
 # - <output_file>  : where the panelist's final answer is written (clean text, just the answer).
-# - model          : the claude model alias/name (default: claude-fable-5, overridable via FUSION_CLAUDE_MODEL).
+# - model          : the claude model alias/name (default: claude-fable-5-1, overridable via FUSION_CLAUDE_MODEL).
 #
 # Flags (matches the project convention; see README):
 #   --print                       headless, non-interactive — print the answer and exit.
@@ -19,7 +19,7 @@
 #                                 can research autonomously like the codex panelist. This bypasses ALL
 #                                 permission checks — that's deliberate for an isolated panelist run, but it
 #                                 IS dangerous; we run in a throwaway scratch dir to contain file writes.
-#   --model claude-fable-5        pin to Fable 5; the CLI's own default may be a different model.
+#   --model claude-fable-5-1      pin to Fable 5.1; the CLI's own default may be a different model.
 #
 # Legacy fallback: if your account has NO Fable 5 access, set FUSION_CLAUDE_MODEL=opus and
 # FUSION_FABLE5_PROMPT to a Fable 5 system-prompt file — that reproduces the pre-Fable behavior (Opus 4.8
@@ -30,7 +30,7 @@ set -uo pipefail
 
 prompt_file="${1:?usage: run_claude.sh <prompt_file> <output_file> [model]}"
 output_file="${2:?usage: run_claude.sh <prompt_file> <output_file> [model]}"
-model="${3:-${FUSION_CLAUDE_MODEL:-claude-fable-5}}"
+model="${3:-${FUSION_CLAUDE_MODEL:-claude-fable-5-1}}"
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null

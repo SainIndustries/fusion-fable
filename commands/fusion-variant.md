@@ -4,7 +4,7 @@ argument-hint: <variant-name> <your question>
 ---
 Invoke the **fusion** skill on the task below using a NAMED HARNESS VARIANT. This is an EXPLICIT
 invocation, so the skill's trigger gate is satisfied — but its Step 0 model gate still applies: the driving
-session must be Claude Fable 5.
+session must be Claude Fable 5.1.
 
 The first word of the arguments is the **variant name** — a preset file at
 `<skill_dir>/variants/<name>.env` capturing one harness (panel composition, judge, model strings). The rest

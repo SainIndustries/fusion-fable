@@ -4,7 +4,7 @@
 # Usage:
 #   run_gemini.sh <prompt_file> <output_file>
 #
-# Gemini is OFF by default in this fork (the default panel is Fable 5 + Opus 4.8 + GPT-5.5). Opt in with
+# Gemini is OFF by default in this fork (the default panel is Fable 5 + GPT-5.6). Opt in with
 # FUSION_USE_GEMINI=1, and only when its CLI is installed and authenticated. This script degrades
 # gracefully: if `gemini` is missing it exits 127 so the orchestrator drops Gemini and continues.
 #

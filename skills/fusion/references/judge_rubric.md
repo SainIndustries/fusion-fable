@@ -2,13 +2,13 @@
 
 This fork splits the old single "judge + write" pass into two stages, kept in separate contexts:
 
-1. **Discernment (the judge) — a fresh, blind Claude Fable 5 subprocess via `scripts/run_judge.sh`**
-   (GPT-5.5 via codex when explicitly requested: judge arg `gpt5.5` / `FUSION_JUDGE=gpt5.5` /
-   `/fusion-gpt5.5`). Reads every panelist answer *after* all returned independently and produces a
+1. **Discernment (the judge) — a fresh, blind Claude Fable 5.1 subprocess via `scripts/run_judge.sh`**
+   (GPT-5.6 Sol via codex when explicitly requested: judge arg `gpt5.6` / `FUSION_JUDGE=gpt5.6` /
+   `/fusion-gpt5.6`). Reads every panelist answer *after* all returned independently and produces a
    structured analysis: who's right, where they conflict, what's load-bearing vs weak. It does **not**
    write the final answer.
-2. **Synthesis (the writer) — Fable 5, the orchestrator (you).** Reads the judge's discernment doc plus
-   the raw answers and writes the final answer grounded in it. Fable 5 always writes the final answer — the
+2. **Synthesis (the writer) — Fable 5.1, the orchestrator (you).** Reads the judge's discernment doc plus
+   the raw answers and writes the final answer grounded in it. Fable 5.1 always writes the final answer — the
    invariant holds.
 
 If the judge subprocess is unavailable or fails (`run_judge.sh` exits non-zero), **you (the orchestrating
@@ -19,7 +19,7 @@ Two non-negotiables for the discernment stage:
 
 - **Anonymize.** Panelist answers go to the judge as Panelist A / B / C in shuffled order; the judge never
   learns which model wrote which. This is what stops a judge from favoring its own model family's panelist
-  answer — a Fable judge the Fable panelist's, a GPT-5.5 judge the codex panelist's. You keep the
+  answer — a Fable judge the Fable panelist's, a GPT-5.6 judge the codex panelist's. You keep the
   label→model map and restore real attribution only at synthesis time.
 - **Classify the deliverable first**, because code and prose are judged completely differently:
   - **Artifact task** (code, script, config, schema, datapack) → **Track A: run both, then merge.**
@@ -99,7 +99,7 @@ add one the panel didn't name.
 The handoff to synthesis: which specific claims are load-bearing AND well-supported (keep), which are
 weak/contradicted (discard or hedge), and the recommended spine for the final answer.
 
-### Final answer (written by Fable 5, the synthesizer)
+### Final answer (written by Fable 5.1, the synthesizer)
 Grounded in the above: lead with high-confidence consensus, fold in the unique insights, flag what stays
 uncertain. It must follow *from* the discernment, not be one panelist's answer lightly edited. Restore real
 panelist attribution here (de-anonymize A/B/C back to the models) so the user can trace each decision.

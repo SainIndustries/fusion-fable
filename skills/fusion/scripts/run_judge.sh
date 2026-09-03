@@ -2,14 +2,14 @@
 # run_judge.sh — the DISCERNMENT stage. Runs the judge over the panel's anonymized answers.
 #
 # This is the middle stage of the Sain Industries Fusion pipeline:
-#     fan out (blind panelists) → [ run_judge.sh: discernment ] → Fable 5 synthesizes
+#     fan out (blind panelists) → [ run_judge.sh: discernment ] → Fable 5.1 synthesizes
 #
-# Default judge: **Claude Fable 5**, run as a FRESH headless `claude` subprocess. Running the judge cold —
+# Default judge: **Claude Fable 5.1**, run as a FRESH headless `claude` subprocess. Running the judge cold —
 # instead of having the orchestrator judge inline — keeps discernment blind: the subprocess sees only the
-# anonymized answers, not the orchestrator's memory of which panelist ran where. Optional: GPT-5.5 (codex)
-# as the judge, via the [judge] arg or FUSION_JUDGE=gpt5.5.
+# anonymized answers, not the orchestrator's memory of which panelist ran where. Optional: GPT-5.6 (codex)
+# as the judge, via the [judge] arg or FUSION_JUDGE=gpt5.6 (the legacy token gpt5.5 is also accepted).
 #
-# The judge does NOT write the final answer. It produces a structured discernment doc that the Fable 5
+# The judge does NOT write the final answer. It produces a structured discernment doc that the Fable 5.1
 # synthesizer consumes: per-panelist assessment, consensus, adjudicated contradictions, partial coverage,
 # unique insights, blind spots, and a verdict on what's load-bearing vs weak.
 #
@@ -21,11 +21,11 @@
 #                    ANONYMITY IS THE CALLER'S JOB: write the answers under shuffled A/B/C labels and keep
 #                    the label→model map yourself. The judge must not be able to tell which answer came
 #                    from its own model family — a Fable judge could otherwise favor the Fable panelist,
-#                    and a GPT-5.5 judge the codex panelist. That's how we neutralize self-preference bias.
+#                    and a GPT-5.6 judge the codex panelist. That's how we neutralize self-preference bias.
 # - <output_file>  : where the discernment doc is written (the judge's final message only).
 # - reasoning_effort : low | medium | high (default: high). Applies to the codex judge; the claude judge
 #                    reasons at its own default and ignores it.
-# - judge          : fable5 (default) | gpt5.5. Also settable via FUSION_JUDGE.
+# - judge          : fable5 (default) | gpt5.6 (gpt5.5 accepted for legacy). Also settable via FUSION_JUDGE.
 #
 # Exit codes:
 #   0   discernment written to <output_file>
@@ -54,14 +54,14 @@ case "$judge" in
       exit 2
     fi
     ;;
-  gpt5.5)
+  gpt5.6|gpt5.5)
     if ! command -v codex >/dev/null 2>&1; then
       echo "[run_judge.sh] codex CLI not installed — caller should do the discernment inline (or use judge=fable5)." >&2
       exit 2
     fi
     ;;
   *)
-    echo "[run_judge.sh] unknown judge '$judge' (expected fable5 or gpt5.5)." >&2
+    echo "[run_judge.sh] unknown judge '$judge' (expected fable5 or gpt5.6)." >&2
     exit 2
     ;;
 esac
@@ -138,9 +138,9 @@ EOF
 } > "$prompt_file"
 
 if [ "$judge" = "fable5" ]; then
-  # Fresh blind Fable 5 subprocess: cold context, anonymized answers only. Runs in the scratch dir so any
+  # Fresh blind Fable 5.1 subprocess: cold context, anonymized answers only. Runs in the scratch dir so any
   # file writes (Track A candidate runs) never touch the repo; wall-clock bounded like every other stage.
-  judge_model="${FUSION_CLAUDE_MODEL:-claude-fable-5}"
+  judge_model="${FUSION_CLAUDE_MODEL:-claude-fable-5-1}"
   ( cd "$scratch" && fusion_run_timeout "$(fusion_default_timeout)" claude \
       --print \
       --dangerously-skip-permissions \
@@ -148,10 +148,10 @@ if [ "$judge" = "fable5" ]; then
       "$(cat "$prompt_file")" ) > "$output_file" 2> "$scratch/stream.log"
   status=$?
 else
-  # GPT-5.5 judge via codex. Hermetic codex home (auth only) + ignore user config so the judge can't
+  # GPT-5.6 judge via codex. Hermetic codex home (auth only) + ignore user config so the judge can't
   # inherit cross-project context from ~/.codex (Finding #0 — a contaminated judge once confabulated an
   # unrelated project's task).
-  judge_model="${JUDGE_MODEL:-gpt-5.5}"   # override to A/B the codex judge (e.g. JUDGE_MODEL=gpt-5.5-codex)
+  judge_model="${JUDGE_MODEL:-gpt-5.6-sol}"   # override to A/B the codex judge
   export CODEX_HOME="$(fusion_codex_home)"
   fusion_run_timeout "$(fusion_default_timeout)" codex exec \
     --skip-git-repo-check \
