@@ -1,0 +1,10 @@
+{"id":"single-opus","kind":"single","panel":["opus"],"tier":0,"note":"baseline: one Opus 4.8 call (the Fusion-vs-single control)"}
+{"id":"single-gpt5.5","kind":"single","panel":["gpt5.5"],"tier":0,"note":"baseline: one GPT-5.5 call"}
+{"id":"single-sonnet","kind":"single","panel":["sonnet"],"tier":0,"note":"baseline: cheap-tier reference"}
+{"id":"fusion-default","kind":"fusion","panel":["opus","opus","gpt5.5"],"judge":"gpt5.5","synth":"opus","tier":1,"note":"the shipped config — the thing we are benchmarking"}
+{"id":"fusion-no-codex","kind":"fusion","panel":["opus","opus"],"judge":"opus","synth":"opus","tier":2,"note":"panel axis: no codex (the FUSION_USE_GEMINI=0, codex-absent fallback)"}
+{"id":"fusion-opus3","kind":"fusion","panel":["opus","opus","opus"],"judge":"gpt5.5","synth":"opus","tier":2,"note":"panel axis: more within-model diversity, no cross-family member"}
+{"id":"fusion-gemini","kind":"fusion","panel":["opus","opus","gpt5.5","gemini"],"judge":"gpt5.5","synth":"opus","tier":2,"note":"panel axis: + Gemini panelist (FUSION_USE_GEMINI=1)"}
+{"id":"fusion-judge-opus","kind":"fusion","panel":["opus","opus","gpt5.5"],"judge":"opus","synth":"opus","tier":2,"note":"judge axis: Opus judges instead of GPT-5.5 (panel held fixed)"}
+{"id":"fusion-synth-gpt5.5","kind":"fusion","panel":["opus","opus","gpt5.5"],"judge":"gpt5.5","synth":"gpt5.5","tier":2,"note":"synth axis: tests the skill's 'Opus always writes' invariant"}
+{"id":"fusion-synth-sonnet","kind":"fusion","panel":["opus","opus","gpt5.5"],"judge":"gpt5.5","synth":"sonnet","tier":2,"note":"synth axis: cheap synthesizer — quality-per-dollar probe"}

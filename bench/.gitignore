@@ -1,0 +1,5 @@
+# Benchmark run artifacts and fetched datasets — never commit (bulk + licensing).
+results/
+tasks/simpleqa.jsonl
+tasks/frames.jsonl
+tasks/gpqa.jsonl
