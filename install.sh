@@ -18,12 +18,13 @@ cp "$HERE/commands/"*.md "$CLAUDE_DIR/commands/"
 # Remove commands renamed in past migrations so stale copies don't linger.
 rm -f "$CLAUDE_DIR/commands/fusion-opus4.8.md"   # pre-Fable-GA
 rm -f "$CLAUDE_DIR/commands/fusion-gpt5.5.md"    # renamed to fusion-gpt5.6 in the GPT-5.6 migration
+rm -f "$CLAUDE_DIR/commands/fusion-gpt5.6.md"    # renamed to fusion-astra in the GPT-6 Astra migration
 cp -R "$HERE/skills/fusion" "$CLAUDE_DIR/skills/fusion"
 chmod +x "$CLAUDE_DIR/skills/fusion/scripts/"*.sh
 
 echo "✓ Installed Fusion-Fable (Sain Industries fork) into $CLAUDE_DIR"
 echo "    skill    : $CLAUDE_DIR/skills/fusion"
-echo "    commands : /fusion  /fusion-gpt5.6  /fusion-fable5  /fusion-variant  /codex-expert"
+echo "    commands : /fusion  /fusion-astra  /fusion-fable5  /fusion-variant  /codex-expert"
 echo "    variants : $(cd "$CLAUDE_DIR/skills/fusion/variants" 2>/dev/null && ls -- *.env 2>/dev/null | sed 's/\.env$//' | tr '\n' ' ')"
 echo
 
@@ -40,12 +41,12 @@ else
   echo "  claude   : WARNING — 'claude' CLI not on PATH; Claude panelists fall back to Agent subagents"
 fi
 if have codex; then
-  echo "  flagship : ready — Fable 5.1 + GPT-5.6 Sol panel, Fable 5.1 judges + synthesizes"
-  echo "             (GPT-5.6 Sol judging available via FUSION_JUDGE=gpt5.6 or /fusion-gpt5.6)"
+  echo "  flagship : ready — Fable 5.1 + GPT-6 Astra panel, Fable 5.1 judges + synthesizes"
+  echo "             (GPT-6 Astra judging available via FUSION_JUDGE=astra or /fusion-astra)"
   echo "             (codex found: $(codex --version 2>/dev/null | head -1))"
   echo "  experts  : ready — persistent codex domain experts via /codex-expert (codex exec resume)"
 else
-  echo "  flagship : needs the 'codex' CLI for the GPT-5.6 Sol panelist (install + log in)"
+  echo "  flagship : needs the 'codex' CLI for the GPT-6 Astra panelist (install + log in)"
   echo "  fallback : ready — Fable 5.1 + Opus 4.8 panel (Opus is the codex-absent fallback), Fable judges (claude CLI only)"
   echo "  experts  : needs the 'codex' CLI for persistent domain experts"
 fi

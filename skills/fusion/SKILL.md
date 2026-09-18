@@ -1,26 +1,26 @@
 ---
 name: fusion
 description: >-
-  Run an explicitly requested subscription-backed cross-model panel: Claude Fable 5.1 and GPT-5.6 Sol
+  Run an explicitly requested subscription-backed cross-model panel: Claude Fable 5.1 and GPT-6 Astra
   answer independently, a fresh blind Fable 5.1 judge evaluates anonymized answers, and Fable 5.1
   synthesizes the result. Use only when the user says fusion, panel, ensemble, or cross-model. Do not
   auto-trigger for ordinary hard questions. Use the persistent-expert workflow for long iterative work
-  rather than a repeated one-shot panel. GPT-5.6 Sol may judge when explicitly requested with
-  FUSION_JUDGE=gpt5.6.
+  rather than a repeated one-shot panel. GPT-6 Astra may judge when explicitly requested with
+  FUSION_JUDGE=astra.
 ---
 
 # Fusion
 
 Fusion turns one prompt into a panel. The question goes to several models **at the same time**, each
 answering independently — with web search and bash, and with no knowledge of the others. The default panel
-is deliberately **cross-model**: two different model families (Claude Fable 5.1 + GPT-5.6 Sol), maximum diversity
-per panelist. Opus 4.8 is the automatic fallback second panelist, used when codex/GPT-5.6 isn't available.
+is deliberately **cross-model**: two different model families (Claude Fable 5.1 + GPT-6 Astra), maximum diversity
+per panelist. Opus 4.8 is the automatic fallback second panelist, used when codex/GPT-6 Astra isn't available.
 Then the pipeline splits the old single "judge" step into two stages:
 
 ```
             ┌─ Fable 5.1 panelist ─┐
 prompt ─fan─┤                      ├─→ Fable 5.1 JUDGE ─→ Fable 5.1 SYNTHESIZE ─→ final answer
-       out  └─ GPT-5.6 Sol panelist┘   (fresh blind          (creative answer,
+       out  └─ GPT-6 Astra panelist┘   (fresh blind          (creative answer,
               (Opus 4.8 if no codex)    subprocess:            grounded in the
                                         scores, consensus,     discernment,
                                         contradictions,        written by your
@@ -36,7 +36,7 @@ panelist gets the task verbatim and answers it straight. (See `references/panel.
 subprocess** over anonymized answers — a cold context that never saw the fan-out and can't be anchored by
 it — while the synthesizer is your warm session, which writes the final answer grounded in the judge's
 discernment. Discernment stays skeptical and blind; synthesis stays creative and accountable. To hand
-discernment to GPT-5.6 instead (cross-model judging), set `FUSION_JUDGE=gpt5.6` or use `/fusion-gpt5.6`.
+discernment to GPT-6 Astra instead (cross-model judging), set `FUSION_JUDGE=astra` or use `/fusion-astra`.
 
 **One hard rule: Fable 5.1 always writes the final answer — the pipeline can't be reversed.** The panelist
 models can't call back out to spawn Fable, so Fable is always the driver and the synthesizer. The judge is
@@ -63,8 +63,8 @@ bash <skill_dir>/scripts/detect_panel.sh
 
 It prints a machine-parseable block — grep these:
 
-- `PANEL=` the panelists that will answer blind (default `fable5,gpt5.6`; `fable5,opus4.8` when codex is absent).
-- `JUDGE=` the discernment model (default `fable5`; `gpt5.6` when `FUSION_JUDGE=gpt5.6` and codex present).
+- `PANEL=` the panelists that will answer blind (default `fable5,astra`; `fable5,opus4.8` when codex is absent).
+- `JUDGE=` the discernment model (default `fable5`; `astra` when `FUSION_JUDGE=astra` and codex present).
 - `SYNTH=` the synthesizer — always `fable5`.
 - `SLUG=` the human-readable label for what you ran.
 - `RUN_DIR=` a **fresh private directory for this run**. Use it for *every* intermediate file below
@@ -73,9 +73,9 @@ It prints a machine-parseable block — grep these:
 
 | Condition | Panel | Judge | Synth |
 | --- | --- | --- | --- |
-| default (claude + codex present) | Fable 5.1 + GPT-5.6 Sol | Fable 5.1 (fresh blind subprocess) | Fable 5.1 |
+| default (claude + codex present) | Fable 5.1 + GPT-6 Astra | Fable 5.1 (fresh blind subprocess) | Fable 5.1 |
 | codex absent (Opus 4.8 fallback) | Fable 5.1 + Opus 4.8 | Fable 5.1 | Fable 5.1 |
-| `FUSION_JUDGE=gpt5.6` (or `/fusion-gpt5.6`) | Fable 5.1 + GPT-5.6 Sol | GPT-5.6 Sol | Fable 5.1 |
+| `FUSION_JUDGE=astra` (or `/fusion-astra`) | Fable 5.1 + GPT-6 Astra | GPT-6 Astra | Fable 5.1 |
 | `FUSION_USE_GEMINI=1` + gemini present | + Gemini 3.1 Pro as an extra panelist | (unchanged) | Fable 5.1 |
 
 If the user named a panel or judge, honor it — but if a required CLI is missing, say so and fall back
@@ -99,7 +99,7 @@ instruction to research with web + bash and return a complete, self-contained an
 independent experts who won't see the others' work. Do not assign lenses; do not pre-digest the task.
 
 Launch **the panelists named by `PANEL=`, all in a single turn** so they run concurrently. The default
-panel is `fable5,gpt5.6`; when codex is absent the detector substitutes `fable5,opus4.8`.
+panel is `fable5,astra`; when codex is absent the detector substitutes `fable5,opus4.8`.
 
 - **Fable 5.1 panelist (always present)** → headless `claude` CLI subprocess, permissions skipped so it
   researches autonomously (web + bash). Write its prompt to a temp file and run in the background:
@@ -111,11 +111,16 @@ panel is `fable5,gpt5.6`; when codex is absent the detector substitutes `fable5,
   (default 900s). Override the model with `FUSION_CLAUDE_MODEL`.
   *(Alternative: if you don't want headless CLI subprocesses, spawn an `Agent` subagent
   `subagent_type: general-purpose` with `model: fable` — same effect.)*
-- **GPT-5.6 Sol panelist (default second panelist)** → write its prompt to a temp file and run in the background:
+  **If `run_claude.sh` exits non-zero, do not drop the Fable panelist — rerun it as that `Agent`
+  subagent.** The usual cause is a revoked/expired CLI login (the script prints "the claude CLI is not
+  logged in"); subagents use the session's own auth, so they still work. Give the subagent the same
+  verbatim prompt and have it write its answer to `$RUN_DIR/fable_out.md`. A failed run never leaves
+  error text behind as an "answer": the runners move a failed output to `<file>.failed`.
+- **GPT-6 Astra panelist (default second panelist)** → write its prompt to a temp file and run in the background:
   ```bash
   bash <skill_dir>/scripts/run_codex.sh "$RUN_DIR/codex_prompt.txt" "$RUN_DIR/codex_out.md" medium
   ```
-- **Opus 4.8 panelist (fallback only)** → run this *instead of* GPT-5.6 when `PANEL=` names `opus4.8`
+- **Opus 4.8 panelist (fallback only)** → run this *instead of* GPT-6 Astra when `PANEL=` names `opus4.8`
   (codex absent, or the `fable5-duo` / `/fusion-fable5` harness). Same runner as Fable, `opus` model arg:
   ```bash
   bash <skill_dir>/scripts/run_claude.sh "$RUN_DIR/opus_prompt.txt"  "$RUN_DIR/opus_out.md"  opus   # Opus 4.8
@@ -124,8 +129,13 @@ panel is `fable5,gpt5.6`; when codex is absent the detector substitutes `fable5,
 - **Gemini panelist (only if `FUSION_USE_GEMINI=1`)** →
   `bash <skill_dir>/scripts/run_gemini.sh "$RUN_DIR/gemini_prompt.txt" "$RUN_DIR/gemini_out.md"`.
 
+`run_codex.sh` exit codes: `3` = the installed codex CLI is too old for the pinned model (GPT-6 Astra needs
+codex ≥ 0.153.1 — relay the upgrade command the script prints), `1` = ran but failed (the script names
+usage-limit and login causes), `127` = not installed. On any of them the GPT panelist is **absent**: run the
+Opus 4.8 fallback panelist in its place and say so. Never substitute a different GPT model silently.
+
 Map each `PANEL=` token to its runner: `fable5` → `run_claude.sh` (default model), `opus4.8` →
-`run_claude.sh … opus`, `gpt5.6` (or legacy `gpt5.5`) → `run_codex.sh`, `gemini3.1pro` → `run_gemini.sh`.
+`run_claude.sh … opus`, `astra` (or the legacy tokens `gpt5.6` / `gpt5.5`, used by the preserved presets) → `run_codex.sh`, `gemini3.1pro` → `run_gemini.sh`.
 **Duplicate tokens are independent cold runs** of the same runner (e.g. a variant panel
 `opus4.8,opus4.8,gpt5.5` launches `run_claude.sh` twice with separate prompt/output files).
 
@@ -154,8 +164,8 @@ Run the judge over the anonymized answers — by default a **fresh blind Fable 5
 
 ```bash
 bash <skill_dir>/scripts/run_judge.sh "$RUN_DIR/task.txt" "$RUN_DIR/answers" "$RUN_DIR/judge.md" high
-# GPT-5.6 judging instead (only when the user asked for it / /fusion-gpt5.6):
-# bash <skill_dir>/scripts/run_judge.sh "$RUN_DIR/task.txt" "$RUN_DIR/answers" "$RUN_DIR/judge.md" high gpt5.6
+# GPT-6 Astra judging instead (only when the user asked for it / /fusion-astra):
+# bash <skill_dir>/scripts/run_judge.sh "$RUN_DIR/task.txt" "$RUN_DIR/answers" "$RUN_DIR/judge.md" high astra
 ```
 
 Read `references/judge_rubric.md`. The judge **classifies the deliverable first** (Track A: code/artifact →
@@ -163,10 +173,16 @@ run & merge; Track B: research → five-section synthesis) and produces a struct
 **not** write the final answer.
 
 **Fallback (judge CLI unavailable, timed out, or off-task):** `run_judge.sh` exits non-zero (2 = judge CLI
-missing, 1 = judge failed / timed out / returned output missing the required sections). When it does, **you
-(the orchestrating Fable session) do the discernment yourself, inline** using
-`references/judge_rubric.md` — read all answers and produce the same structured analysis. Note in the final
-output that the judge fell back to inline discernment.
+missing or too old for the pinned model, 1 = judge failed / not logged in / timed out / returned output
+missing the required sections). Fall back in this order, and say which one you used in the final output:
+
+1. **A fresh blind `Agent` subagent** (`subagent_type: general-purpose`, `model: fable`). Give it only the
+   rubric path, `$RUN_DIR/task.txt`, and the anonymized `$RUN_DIR/answers/panelist_*.md` (tell it not to
+   open `map.json`), ask it to verify contested factual claims itself, and have it write
+   `$RUN_DIR/judge.md`. This keeps what the judge stage exists for — a cold context that never saw the
+   fan-out — and works when the `claude` CLI login is revoked.
+2. **Inline discernment** by you, the orchestrating session, using `references/judge_rubric.md`, only when
+   subagents are unavailable too.
 
 ## Step 4 — Synthesize (your Fable session writes the final answer)
 

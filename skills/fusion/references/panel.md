@@ -13,8 +13,8 @@ Do not assign panelists "roles" or "stances" (skeptic, optimizer, first-principl
 every panelist the user's task **verbatim** and let each answer it straight.
 
 The diversity is real and free: the default panel is deliberately **cross-model** — one Claude Fable 5.1 and
-one GPT-5.6 Sol — two different model families, so the same prompt takes genuinely different reasoning paths,
-tool calls, and source selections. (Opus 4.8 is the automatic fallback second panelist when codex/GPT-5.6
+one GPT-6 Astra — two different model families, so the same prompt takes genuinely different reasoning paths,
+tool calls, and source selections. (Opus 4.8 is the automatic fallback second panelist when codex/GPT-6 Astra
 isn't available.) You don't manufacture diversity with personas; you harvest it from model variety plus
 independence.
 
@@ -32,8 +32,8 @@ This fork separates the two halves of the old single-judge step:
 - **Judge (discernment)** — **a fresh, blind Claude Fable 5.1 subprocess** by default
   (`scripts/run_judge.sh`). It reads only the anonymized answers — a cold context that never watched the
   fan-out — scores them, finds consensus and adjudicates contradictions, and decides what's load-bearing vs
-  weak. It does **not** write the final answer. Set `FUSION_JUDGE=gpt5.6` (or use `/fusion-gpt5.6`) to hand
-  discernment to GPT-5.6 via codex instead — cross-model judging. If the judge subprocess fails, the
+  weak. It does **not** write the final answer. Set `FUSION_JUDGE=astra` (or use `/fusion-astra`) to hand
+  discernment to GPT-6 Astra via codex instead — cross-model judging. If the judge subprocess fails, the
   orchestrating session does the discernment inline.
 - **Synthesizer (final answer)** — **always Claude Fable 5.1**, the orchestrator. It writes the final answer
   grounded in the judge's discernment.
@@ -53,16 +53,16 @@ independence, in-process.) Override the models with `FUSION_CLAUDE_MODEL` (Fable
 
 ## Default panel composition
 
-- Panelists: **one Fable 5.1** (claude CLI) **+ one GPT-5.6 Sol** (codex), both answering in parallel and blind.
-  If codex is absent, GPT-5.6 is replaced by an **Opus 4.8** fallback panelist so the panel stays a pair.
+- Panelists: **one Fable 5.1** (claude CLI) **+ one GPT-6 Astra** (codex), both answering in parallel and blind.
+  If codex is absent, GPT-6 Astra is replaced by an **Opus 4.8** fallback panelist so the panel stays a pair.
 - Gemini is **off by default** — set `FUSION_USE_GEMINI=1` to add it as an optional extra panelist when its
   CLI is present and authenticated.
-- Judge: **Fable 5.1, fresh blind subprocess** (GPT-5.6 Sol via `FUSION_JUDGE=gpt5.6`). Synthesizer: **Fable 5.1**.
+- Judge: **Fable 5.1, fresh blind subprocess** (GPT-6 Astra via `FUSION_JUDGE=astra`). Synthesizer: **Fable 5.1**.
 
 ## Anonymize before judging
 
 The judge shares a model family with at least one panelist — a Fable judge with the Fable panelist, a
-GPT-5.6 judge with the codex panelist — so an un-blinded judge could favor its own model's answer
+GPT-6 Astra judge with the codex panelist — so an un-blinded judge could favor its own model's answer
 (self-preference bias). Neutralize it: write the panelist answers out under **shuffled** labels — Panelist
 A, B, C — and hand the judge only those. The judge never learns which model wrote which. Keep the
 label→model map yourself and restore real attribution only when you (Fable) write the final answer.

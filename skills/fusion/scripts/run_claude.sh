@@ -66,11 +66,17 @@ trap 'rm -rf "$scratch"' EXIT
 status=$?
 if [ $status -eq 124 ]; then
   echo "[run_claude.sh] claude timed out after $(fusion_default_timeout)s (FUSION_TIMEOUT)." >&2
+  fusion_discard_failed_output "$output_file"
   exit 1
 fi
 if [ $status -ne 0 ] || [ ! -s "$output_file" ]; then
   echo "[run_claude.sh] claude exited $status; tail of stderr:" >&2
   tail -20 "$scratch/err.log" >&2
+  # claude --print reports auth failures on STDOUT, i.e. inside the output file — diagnose both, then
+  # move the file aside so the error text can never be anonymized and judged as an answer.
+  cat "$scratch/err.log" "$output_file" > "$scratch/diag.log" 2>/dev/null
+  fusion_diagnose_log "$scratch/diag.log" "run_claude.sh"
+  fusion_discard_failed_output "$output_file"
   exit 1
 fi
 echo "[run_claude.sh] ok -> $output_file (model=$model)"
