@@ -5,14 +5,14 @@ Fable 5.1.**
 
 Fusion-Fable is a [Claude Code](https://claude.com/claude-code) skill that runs a hard question through a
 **panel → judge → synthesize** pipeline. The same prompt is dispatched to a deliberately **cross-model
-panel** *in parallel* — one Claude Fable 5.1 and one GPT-5.6 Sol (via the `codex` CLI) — each answering
+panel** *in parallel* — one Claude Fable 5.1 and one GPT-6 Astra (via the `codex` CLI) — each answering
 independently with web search and bash, neither seeing the other's work. Then a **fresh, blind Claude
 Fable 5.1 subprocess judges** the anonymized answers into a structured discernment (consensus, contradictions,
 partial coverage, unique insights, blind spots, verdict), and **your Fable 5.1 session synthesizes** the final
 answer grounded in that discernment.
 
-The two panelists are the latest frontier models of two families: **Claude Fable 5.1** and **GPT-5.6 Sol**.
-**Opus 4.8 is the automatic fallback** second panelist — it steps in for GPT-5.6 only when the `codex` CLI
+The two panelists are the latest frontier models of two families: **Claude Fable 5.1** and **GPT-6 Astra**.
+**Opus 4.8 is the automatic fallback** second panelist — it steps in for GPT-6 Astra only when the `codex` CLI
 isn't available (or you deliberately want an all-Claude run).
 
 The mechanism is **independence, then discernment, then synthesis**. The diversity that makes a panel beat
@@ -23,7 +23,7 @@ personas; every panelist gets the task verbatim and answers it straight.
 ```
             ┌─ Fable 5.1 panelist ─┐
 prompt ─fan─┤                      ├─→ Fable 5.1 JUDGE ─→ Fable 5.1 SYNTHESIZE ─→ final answer
-       out  └─ GPT-5.6 Sol panelist┘   (fresh blind          (creative answer,
+       out  └─ GPT-6 Astra panelist┘   (fresh blind          (creative answer,
    (web + bash, independent, blind)     subprocess:            grounded in the
      (Opus 4.8 substitutes if no codex) scores, consensus,     discernment)
                                         contradictions,
@@ -33,8 +33,8 @@ prompt ─fan─┤                      ├─→ Fable 5.1 JUDGE ─→ Fable 
 **Why the judge is a separate, cold context.** Discernment and synthesis are different jobs even when one
 model does both: the judge runs as a fresh headless Fable 5.1 subprocess that sees *only* the anonymized
 answers — it never watched the fan-out, so it can't be anchored by it — while the synthesizer is your warm
-session, accountable for the final answer. Prefer cross-model judging? `FUSION_JUDGE=gpt5.6` (or
-`/fusion-gpt5.6`) hands discernment to GPT-5.6 instead. The judge never authors the final answer.
+session, accountable for the final answer. Prefer cross-model judging? `FUSION_JUDGE=astra` (or
+`/fusion-astra`) hands discernment to GPT-6 Astra instead. The judge never authors the final answer.
 
 **The invariant still holds:** Fable 5.1 always writes the final answer and always drives — the pipeline
 can't be reversed, because the panelist models can't call back out to spawn Fable. The judge is an
@@ -54,7 +54,7 @@ Fusion should stay out of the way. The skill is therefore gated two ways:
   Opus or Sonnet session would silently downgrade the result. The skill checks the session model first and
   refuses to run from a non-Fable session (switch with `/model fable`) unless you explicitly override.
 
-Reach for Fusion when you want **cross-model diversity** (GPT-5.6's independent take, adjudicated against a
+Reach for Fusion when you want **cross-model diversity** (GPT-6 Astra's independent take, adjudicated against a
 cold Fable run) or when the stakes justify N× scrutiny on something **harder than one Fable run should carry
 alone** — a risky migration, a design call you can't cheaply undo, a debugging conclusion that would be
 expensive to get confidently wrong.
@@ -66,15 +66,15 @@ fork keeps **discernment and synthesis in separate contexts** — a blind cold j
 anonymized answers, and a warm synthesizer accountable for the final deliverable. Around that split sit a
 few operational changes:
 
-- **Cross-model panel.** One Fable 5.1 + one GPT-5.6 Sol — two families, maximum diversity per panelist, with an
+- **Cross-model panel.** One Fable 5.1 + one GPT-6 Astra — two families, maximum diversity per panelist, with an
   Opus 4.8 fallback when codex is absent. Gemini stays opt-in (`FUSION_USE_GEMINI=1`).
 - **Split judge / synthesizer.** A fresh blind Fable 5.1 subprocess does discernment; your Fable 5.1 session
-  does synthesis. GPT-5.6 judging is one flag away (`FUSION_JUDGE=gpt5.6` / `/fusion-gpt5.6`).
+  does synthesis. GPT-6 Astra judging is one flag away (`FUSION_JUDGE=astra` / `/fusion-astra`).
 - **Real Claude panelists** run as headless `claude --model claude-fable-5-1` / `--model opus` CLI
   subprocesses (with `--dangerously-skip-permissions`), instead of in-process Agent subagents — see the
   note below.
 - **Anonymized judging** — panelist answers reach the judge as shuffled Panelist A/B, so a judge can't
-  favor its own model family's answer (Fable judge vs the Fable panelist, GPT-5.6 judge vs the codex one).
+  favor its own model family's answer (Fable judge vs the Fable panelist, GPT-6 Astra judge vs the codex one).
 - **Persistent codex domain experts** — `/codex-expert` and `scripts/codex_expert.sh` keep a long-lived
   codex session for iterative, context-heavy work, as an alternative to throwaway subagents.
 - **Graceful judge fallback** — if the judge subprocess fails, your session does the discernment inline.
@@ -84,9 +84,9 @@ few operational changes:
 
 | Condition | Panelists | Judge | Synthesizer | Requires |
 | --- | --- | --- | --- | --- |
-| **flagship** (default) | Fable 5.1 + GPT-5.6 Sol | **Fable 5.1** (fresh blind subprocess) | Fable 5.1 | `claude` + `codex` CLIs |
+| **flagship** (default) | Fable 5.1 + GPT-6 Astra | **Fable 5.1** (fresh blind subprocess) | Fable 5.1 | `claude` + `codex` CLIs |
 | **fallback** (no codex) | Fable 5.1 + Opus 4.8 | Fable 5.1 | Fable 5.1 | just the `claude` CLI |
-| **GPT-5.6-judged** (`FUSION_JUDGE=gpt5.6` / `/fusion-gpt5.6`) | Fable 5.1 + GPT-5.6 Sol | **GPT-5.6 Sol** | Fable 5.1 | `claude` + `codex` CLIs |
+| **Astra-judged** (`FUSION_JUDGE=astra` / `/fusion-astra`) | Fable 5.1 + GPT-6 Astra | **GPT-6 Astra** | Fable 5.1 | `claude` + `codex` CLIs |
 | **+ gemini** (`FUSION_USE_GEMINI=1`) | + Gemini 3.1 Pro | (unchanged) | Fable 5.1 | + the `gemini` CLI |
 
 `scripts/detect_panel.sh` auto-detects which CLIs are installed and prints the richest pipeline available,
@@ -103,14 +103,20 @@ FUSION_VARIANT=fable5-crossmodel   # …then invoke /fusion as usual, or:
 /fusion-variant fable5-crossmodel  <prompt>   # first word = variant, rest = task
 ```
 
+**GPT-6 Astra needs codex CLI ≥ 0.153.1** (`brew upgrade --cask codex` or `npm i -g @openai/codex@latest`).
+On an older CLI the detector treats the GPT panelist as unavailable, says how to upgrade, and falls back to
+the Opus 4.8 panelist; `FUSION_VARIANT=fable5-gpt5.6` runs the previous era unchanged.
+
 Shipped presets:
 
 | Variant | Panel | Judge | Notes |
 | --- | --- | --- | --- |
-| `fable5-gpt5.6` | Fable 5.1 + GPT-5.6 Sol | Fable 5.1 | the current default, given a name |
-| `fable5-gpt5.6-judged` | Fable 5.1 + GPT-5.6 Sol | GPT-5.6 Sol | cross-family judging (`/fusion-gpt5.6`) |
+| `fable5-astra` | Fable 5.1 + GPT-6 Astra | Fable 5.1 | the current default, given a name |
+| `fable5-astra-judged` | Fable 5.1 + GPT-6 Astra | GPT-6 Astra | cross-family judging (`/fusion-astra`) |
 | `fable5-duo` | Fable 5.1 + Opus 4.8 | Fable 5.1 | claude-CLI only / Opus fallback (`/fusion-fable5`) |
-| `fable5-crossmodel` | Fable 5 + Opus 4.8 + GPT-5.5 | Fable 5 | the prior three-model default, frozen |
+| `fable5-gpt5.6` | Fable 5.1 + GPT-5.6 Sol | Fable 5.1 | the prior default (GPT-5.6 Sol era), frozen |
+| `fable5-gpt5.6-judged` | Fable 5.1 + GPT-5.6 Sol | GPT-5.6 Sol | prior era, GPT-5.6 Sol judges, frozen |
+| `fable5-crossmodel` | Fable 5 + Opus 4.8 + GPT-5.5 | Fable 5 | the three-model default before that, frozen |
 | `fable5-gpt5.5-judged` | Fable 5 + Opus 4.8 + GPT-5.5 | GPT-5.5 | prior three-model era, GPT-5.5 judges |
 | `opus4.8-era` | 2× Opus 4.8 (Fable persona) + GPT-5.5 | GPT-5.5 | the original pre-Fable-GA harness |
 
@@ -125,7 +131,8 @@ Repo conventions around this:
 - **`main`** always holds the current-best default harness *plus every preset* — old harnesses stay
   runnable from main via `FUSION_VARIANT`, sharing all script fixes.
 - **`era/*` tags** freeze each milestone immutably (`era/opus4.8` = the pre-Fable harness,
-  `era/fable5-crossmodel` = the three-model Fable era, `era/fable5-gpt5.6` = this one) — check one out to
+  `era/fable5-crossmodel` = the three-model Fable era, `era/fable5-gpt5.6` = the GPT-5.6 Sol era,
+  `era/fable5-astra` = this one) — check one out to
   reproduce a full repo state exactly.
 - **`dev`** trails at the previous era's tip as a working branch for archaeology and back-porting; it is
   not where new work lands.
@@ -153,7 +160,7 @@ synthesizer is your session model. Then invoke it explicitly — three equivalen
 - **Slash commands:**
   ```
   /fusion           <prompt>   # cross-model panel, Fable judges + synthesizes (recommended default)
-  /fusion-gpt5.6    <prompt>   # same panel, but GPT-5.6 judges instead of Fable
+  /fusion-astra    <prompt>   # same panel, but GPT-6 Astra judges instead of Fable
   /fusion-fable5    <prompt>   # zero-setup: Fable 5.1 + Opus 4.8 (the fallback panel) via claude CLI only
   /fusion-variant   <name> <prompt>   # any named harness preset from skills/fusion/variants/
   ```
@@ -167,11 +174,11 @@ synthesizer is your session model. Then invoke it explicitly — three equivalen
 
 - **Most questions — even hard ones** → no Fusion at all. A single direct Fable 5 answer is cheaper,
   faster, and usually just as good. This is the default.
-- **One high-stakes question** where being confidently wrong is expensive, or where you want GPT-5.6's
+- **One high-stakes question** where being confidently wrong is expensive, or where you want GPT-6 Astra's
   independent take cross-checked against Fable — a design call, a risky migration, a subtle debugging
   conclusion → `/fusion`. One shot, maximum scrutiny.
-- **You want the adjudicator to be a different model family than the synthesizer** → `/fusion-gpt5.6`
-  (same panel, GPT-5.6 judges).
+- **You want the adjudicator to be a different model family than the synthesizer** → `/fusion-astra`
+  (same panel, GPT-6 Astra judges).
 - **codex offline / capped, or you want an all-Claude run** → `/fusion-fable5` (the Opus 4.8 fallback panel).
 - **A long thread on one domain** where context should accumulate across many turns → `/codex-expert`.
 
@@ -189,7 +196,7 @@ Code skill, which keeps working toward a stated goal — self-paced, or on a fix
 ```
 # Self-paced: no interval — Claude decides when to iterate until the goal's stop condition is met.
 /loop Harden our JWT refresh-rotation design. Each round, run the most important open question through
-      /fusion-gpt5.6, apply the synthesis, and move to the next-riskiest unknown. Stop when a fusion
+      /fusion-astra, apply the synthesis, and move to the next-riskiest unknown. Stop when a fusion
       run surfaces no high-severity blind spots.
 
 # Fixed interval: re-run on a cadence.
@@ -255,16 +262,16 @@ system prompt.
   panelists and the blind judge are launched as `claude --model claude-fable-5-1` / `--model opus`
   subprocesses; the synthesizer is your session, so run it on **Fable 5.1** (`/model fable`) — the skill's
   gate enforces this.
-- For the GPT-5.6 panelist (and the optional GPT-5.6 judge) plus persistent experts: the
-  [`codex` CLI](https://github.com/openai/codex) installed and logged in to an account with GPT-5.6 access.
+- For the GPT-6 Astra panelist (and the optional GPT-6 Astra judge) plus persistent experts: the
+  [`codex` CLI](https://github.com/openai/codex) installed and logged in to an account with GPT-6 Astra access.
   The runners use `codex exec` (tested against `codex-cli` 0.139). Override the pinned model with
   `CODEX_PANELIST_MODEL` / `JUDGE_MODEL` if your account names it differently.
 - Optional Gemini panelist (`FUSION_USE_GEMINI=1`): a `gemini` CLI installed and authenticated. Adjust the
   model in `skills/fusion/scripts/run_gemini.sh` to one your account can access (the default is
   `gemini-2.5-pro`, overridable via `GEMINI_MODEL`).
 
-Only the **fallback** (Fable 5.1 + Opus 4.8) pipeline is truly zero-setup; the default GPT-5.6 Sol panelist,
-optional GPT-5.6 judge, and persistent experts light up once `codex` is installed and authenticated.
+Only the **fallback** (Fable 5.1 + Opus 4.8) pipeline is truly zero-setup; the default GPT-6 Astra panelist,
+optional GPT-6 Astra judge, and persistent experts light up once `codex` is installed and authenticated.
 
 ## What's in here
 
@@ -275,18 +282,20 @@ skills/fusion/
   scripts/
     detect_panel.sh         picks panel + judge + synthesizer; prints PANEL/JUDGE/SYNTH/SLUG/RUN_DIR
     run_claude.sh           runs a Claude panelist via the claude CLI (Fable 5 default; opus for Opus 4.8)
-    run_codex.sh            runs a GPT-5.6 panelist (model-pinned, timeout-bounded), captures its answer
-    run_judge.sh            the discernment stage — blind Fable 5 judge (gpt5.6 optional); validates output
+    run_codex.sh            runs a GPT-6 Astra panelist (model-pinned, timeout-bounded), captures its answer
+    run_judge.sh            the discernment stage — blind Fable 5 judge (astra optional); validates output
     anonymize.sh            shuffles answers into blind A/B/C labels with a real RNG + durable map.json
     anchor_emit.sh          optional tamper-evident provenance attestation (Anchor'd; opt-in)
     codex_expert.sh         persistent codex domain experts (per-name lock + atomic id write)
     run_gemini.sh           optional Gemini panelist (off unless FUSION_USE_GEMINI=1)
-    _lib.sh                 shared helpers (portable timeout shim)
+    _lib.sh                 shared helpers (timeout shim, codex version gate, failure diagnosis)
   variants/
-    fable5-gpt5.6.env       the current default harness, as a named preset
-    fable5-gpt5.6-judged.env  cross-family judging (GPT-5.6 adjudicates)
+    fable5-astra.env       the current default harness, as a named preset
+    fable5-astra-judged.env  cross-family judging (GPT-6 Astra adjudicates)
     fable5-duo.env          claude-CLI-only panel / Opus 4.8 fallback
-    fable5-crossmodel.env   the prior three-model Fable era (Fable 5 + Opus 4.8 + GPT-5.5), frozen
+    fable5-gpt5.6.env       the prior default (Fable 5.1 + GPT-5.6 Sol), frozen
+    fable5-gpt5.6-judged.env  prior era, GPT-5.6 Sol judges, frozen
+    fable5-crossmodel.env   the three-model Fable era (Fable 5 + Opus 4.8 + GPT-5.5), frozen
     fable5-gpt5.5-judged.env  prior three-model era, GPT-5.5 judges, frozen
     opus4.8-era.env         the original pre-Fable-GA harness, preserved
   references/
@@ -296,7 +305,7 @@ skills/fusion/
     provenance.md           optional Anchor'd provenance emitter — data model, config, verify
 commands/
   fusion.md                 /fusion          (cross-model panel, Fable judges — default)
-  fusion-gpt5.6.md          /fusion-gpt5.6   (same panel, GPT-5.6 judges)
+  fusion-astra.md          /fusion-astra   (same panel, GPT-6 Astra judges)
   fusion-fable5.md          /fusion-fable5   (zero-setup all-Claude: Fable 5 + Opus 4.8)
   fusion-variant.md         /fusion-variant  (run any named harness preset)
   codex-expert.md           /codex-expert    (persistent domain expert)

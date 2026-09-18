@@ -22,6 +22,69 @@ fusion_run_timeout() {
 # fusion_default_timeout — the per-CLI wall-clock budget, overridable via FUSION_TIMEOUT (seconds).
 fusion_default_timeout() { echo "${FUSION_TIMEOUT:-900}"; }
 
+# fusion_codex_version — echo the installed codex CLI version (e.g. 0.153.1), or nothing if unknown.
+fusion_codex_version() {
+  codex --version 2>/dev/null | sed -n 's/.*[^0-9]\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -1
+}
+
+# fusion_version_ge <have> <need> — true when dotted version <have> >= <need>. Pure bash, no sort -V.
+fusion_version_ge() {
+  local IFS=. i a b
+  # shellcheck disable=SC2206
+  local have=($1) need=($2)
+  for i in 0 1 2; do
+    a="${have[$i]:-0}"; b="${need[$i]:-0}"
+    [ "$a" -gt "$b" ] 2>/dev/null && return 0
+    [ "$a" -lt "$b" ] 2>/dev/null && return 1
+  done
+  return 0
+}
+
+# fusion_codex_supports_model <model> — can the INSTALLED codex CLI run this model?
+# GPT-6 Astra needs codex >= 0.153.1 (override the floor with FUSION_CODEX_MIN_FOR_ASTRA). On an older
+# CLI the API answers 400 "requires a newer version of Codex" (older builds mislabel it as "not supported
+# when using Codex with a ChatGPT account"), so we check locally and say how to fix it instead.
+# Unknown version => assume supported and let the API be the judge.
+fusion_codex_supports_model() {
+  case "$1" in
+    gpt-6-astra*)
+      local v; v="$(fusion_codex_version)"
+      [ -n "$v" ] || return 0
+      fusion_version_ge "$v" "${FUSION_CODEX_MIN_FOR_ASTRA:-0.153.1}"
+      ;;
+    *) return 0 ;;
+  esac
+}
+
+# fusion_codex_upgrade_hint — one line telling the user how to get a codex new enough for GPT-6 Astra.
+fusion_codex_upgrade_hint() {
+  echo "codex $(fusion_codex_version) is too old for GPT-6 Astra (needs >= ${FUSION_CODEX_MIN_FOR_ASTRA:-0.153.1}). Upgrade: 'brew upgrade --cask codex' or 'npm i -g @openai/codex@latest'. To run the previous era meanwhile: FUSION_VARIANT=fable5-gpt5.6."
+}
+
+# fusion_diagnose_log <log_file> <who> — turn the common, non-obvious CLI failures into one actionable line.
+fusion_diagnose_log() {
+  local log="$1" who="$2"
+  [ -s "$log" ] || return 0
+  if grep -qiE 'OAuth access token has been revoked|Failed to authenticate|401' "$log"; then
+    echo "[$who] the claude CLI is not logged in (token revoked/expired). Fix: run 'claude' and /login. Until then, run the Claude panelists and the judge as blind Agent subagents (SKILL.md, Step 1 and Step 3)." >&2
+  fi
+  if grep -qiE 'requires a newer version of Codex|not supported when using Codex' "$log"; then
+    echo "[$who] $(fusion_codex_upgrade_hint)" >&2
+  fi
+  if grep -qiE "hit your usage limit" "$log"; then
+    echo "[$who] the codex account hit its usage limit — this panelist is ABSENT for this run (fall back to the Opus 4.8 panelist); see the reset time in the log above." >&2
+  fi
+}
+
+# fusion_discard_failed_output <output_file> — a failed CLI can leave its ERROR TEXT in the output file
+# (claude --print writes "Failed to authenticate…" to stdout). anonymize.sh keeps any non-empty source, so
+# that text would be judged as if it were a panelist's answer. Move it aside so a failed panelist is
+# truly ABSENT.
+fusion_discard_failed_output() {
+  [ -e "$1" ] || return 0
+  mv -f "$1" "$1.failed" 2>/dev/null || rm -f "$1"
+}
+
 # fusion_codex_home — echo a HERMETIC CODEX_HOME for codex panelist/judge runs.
 #
 # Root cause of "Finding #0": codex exec pulls cross-project context (session history / memory / the

@@ -6,8 +6,8 @@
 #
 # Default judge: **Claude Fable 5.1**, run as a FRESH headless `claude` subprocess. Running the judge cold —
 # instead of having the orchestrator judge inline — keeps discernment blind: the subprocess sees only the
-# anonymized answers, not the orchestrator's memory of which panelist ran where. Optional: GPT-5.6 (codex)
-# as the judge, via the [judge] arg or FUSION_JUDGE=gpt5.6 (the legacy token gpt5.5 is also accepted).
+# anonymized answers, not the orchestrator's memory of which panelist ran where. Optional: GPT-6 Astra (codex)
+# as the judge, via the [judge] arg or FUSION_JUDGE=astra (the legacy token gpt5.5 is also accepted).
 #
 # The judge does NOT write the final answer. It produces a structured discernment doc that the Fable 5.1
 # synthesizer consumes: per-panelist assessment, consensus, adjudicated contradictions, partial coverage,
@@ -21,11 +21,11 @@
 #                    ANONYMITY IS THE CALLER'S JOB: write the answers under shuffled A/B/C labels and keep
 #                    the label→model map yourself. The judge must not be able to tell which answer came
 #                    from its own model family — a Fable judge could otherwise favor the Fable panelist,
-#                    and a GPT-5.6 judge the codex panelist. That's how we neutralize self-preference bias.
+#                    and a GPT-6 Astra judge the codex panelist. That's how we neutralize self-preference bias.
 # - <output_file>  : where the discernment doc is written (the judge's final message only).
 # - reasoning_effort : low | medium | high (default: high). Applies to the codex judge; the claude judge
 #                    reasons at its own default and ignores it.
-# - judge          : fable5 (default) | gpt5.6 (gpt5.5 accepted for legacy). Also settable via FUSION_JUDGE.
+# - judge          : fable5 (default) | astra (gpt5.5 accepted for legacy). Also settable via FUSION_JUDGE.
 #
 # Exit codes:
 #   0   discernment written to <output_file>
@@ -54,14 +54,14 @@ case "$judge" in
       exit 2
     fi
     ;;
-  gpt5.6|gpt5.5)
+  astra|gpt5.6|gpt5.5)
     if ! command -v codex >/dev/null 2>&1; then
       echo "[run_judge.sh] codex CLI not installed — caller should do the discernment inline (or use judge=fable5)." >&2
       exit 2
     fi
     ;;
   *)
-    echo "[run_judge.sh] unknown judge '$judge' (expected fable5 or gpt5.6)." >&2
+    echo "[run_judge.sh] unknown judge '$judge' (expected fable5 or astra; legacy gpt5.6/gpt5.5 accepted)." >&2
     exit 2
     ;;
 esac
@@ -148,10 +148,14 @@ if [ "$judge" = "fable5" ]; then
       "$(cat "$prompt_file")" ) > "$output_file" 2> "$scratch/stream.log"
   status=$?
 else
-  # GPT-5.6 judge via codex. Hermetic codex home (auth only) + ignore user config so the judge can't
+  # GPT-6 Astra judge via codex. Hermetic codex home (auth only) + ignore user config so the judge can't
   # inherit cross-project context from ~/.codex (Finding #0 — a contaminated judge once confabulated an
   # unrelated project's task).
-  judge_model="${JUDGE_MODEL:-gpt-5.6-sol}"   # override to A/B the codex judge
+  judge_model="${JUDGE_MODEL:-gpt-6-astra}"   # override to A/B the codex judge
+  if ! fusion_codex_supports_model "$judge_model"; then
+    echo "[run_judge.sh] $(fusion_codex_upgrade_hint) — caller should judge with fable5 (or a blind Agent subagent)." >&2
+    exit 2
+  fi
   export CODEX_HOME="$(fusion_codex_home)"
   fusion_run_timeout "$(fusion_default_timeout)" codex exec \
     --skip-git-repo-check \
@@ -174,6 +178,9 @@ fi
 if [ $status -ne 0 ] || [ ! -s "$output_file" ]; then
   echo "[run_judge.sh] $judge judge exited $status; tail of log:" >&2
   tail -20 "$scratch/stream.log" >&2
+  cat "$scratch/stream.log" "$output_file" > "$scratch/diag.log" 2>/dev/null
+  fusion_diagnose_log "$scratch/diag.log" "run_judge.sh"
+  fusion_discard_failed_output "$output_file"
   exit 1
 fi
 

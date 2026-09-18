@@ -1,5 +1,5 @@
 ---
-description: Talk to a persistent codex (GPT-5.6 Sol) domain expert that remembers across turns
+description: Talk to a persistent codex (GPT-6 Astra) domain expert that remembers across turns
 argument-hint: <expert-name> <prompt>
 ---
 Use a **persistent codex domain expert** for iterative, context-heavy work (debugging a subsystem over many
